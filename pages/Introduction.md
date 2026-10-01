@@ -28,4 +28,6 @@
 	  | likho-ui, likho-web-sdk | Shared design system and web client |
 	  | likho-docs | This site |
 - ## Status
-	- Wave 0 (foundation) is in progress: the local stack and the contracts exist and are tested. The services and the web app follow in Wave 1.
+	- Wave 0 (foundation) is done: the local stack, the contracts, the design system and this site.
+	- Wave 1 is in progress. Built and tested: **likho-language** and **likho-transcription** (a job on the event bus becomes live lines and a stored two-layer transcript).
+	- Next: likho-media, likho-api, then the web app.

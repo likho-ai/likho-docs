@@ -195,37 +195,44 @@
 	- **Env**: `DATABASE_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `WATCH_DIR` (optional), `MAX_UPLOAD_MB`.
 	- **Produces** `likho.media.uploaded`, `likho.media.ready`.
 	- ---
-- ## likho-transcription (this repository)
-	- Python 3.13, uv, faster-whisper / CTranslate2, grpcio, nats-py, pymongo, boto3 (MinIO), pydantic-settings, OpenTelemetry. ruff, mypy, pytest (existing 105 tests stay).
+- ## likho-transcription
+	- **Built.** Repository: https://github.com/likho-ai/likho-transcription
+	- Python 3.12, uv, faster-whisper / CTranslate2, grpcio, nats-py, pymongo, httpx, pydantic-settings. ruff, mypy, pytest (99 tests; the service tests run against MongoDB and NATS from likho-infra).
 	- ```
 	  likho-transcription/
 	  ├── pyproject.toml  uv.lock
 	  ├── src/
-	  │   ├── transcriber/             # EXISTING engine, unchanged API: audio, chunking, engine, cleanup, writer, cli
-	  │   │   └── hinglish/            #   stays as the built-in fallback; the service asks likho-language first
-	  │   └── likho_transcription/     # NEW service layer
-	  │       ├── __main__.py          #   starts consumer + gRPC + health
+	  │   ├── likho_engine/            # the speech engine: no network, no database
+	  │   │   ├── audio.py  chunking.py  cleanup.py  engine.py
+	  │   │   ├── transcript.py        #   both layers of every line; asks a Language how to write them
+	  │   │   ├── writer.py  files.py  watch.py
+	  │   │   └── cli.py               #   the likho-transcribe command
+	  │   └── likho_transcription/     # the service around it
+	  │       ├── __main__.py          #   starts worker + gRPC + health
 	  │       ├── settings.py
-	  │       ├── consumer.py          #   likho.transcription.requested → run job
+	  │       ├── consumer.py          #   likho.transcription.requested → one job at a time
+	  │       ├── runner.py            #   fetch audio → detect → policy → decode → Hinglish → store
+	  │       ├── gateways.py          #   gRPC to likho-language (built-in rules when it is down) and likho-media
 	  │       ├── grpc_server.py       #   TranscriptionService
-	  │       ├── pipeline.py          #   fetch audio → detect → policy → decode → transliterate → store → emit
-	  │       ├── engines/             #   base.py (Engine protocol), faster_whisper.py, (whisper_cpp.py, cloud_*.py later)
-	  │       ├── registry.py          #   model catalogue: local config now, likho-ml gRPC in Wave 3
-	  │       ├── language_client.py   #   gRPC to likho-language, with in-process fallback
-	  │       ├── store.py             #   MongoDB transcripts
-	  │       └── events.py            #   segment / completed / failed producers
-	  ├── tests/                       # engine tests + service tests with fakes
-	  ├── glossary.txt  custom_words.json   # seed data imported into likho-language once
-	  └── Dockerfile                   # CPU image; model cache mounted as a volume
+	  │       ├── store.py             #   MongoDB transcripts, one document per version
+	  │       └── events.py            #   live line / completed / failed
+	  ├── tests/                       # engine tests + service tests against the local stack
+	  └── Dockerfile                   # CPU image; the model cache is a volume
 	  ```
-	- **Owns (MongoDB `likho_transcription.transcripts`)** — the two-layer document from PLAN.md §5: language detection block (`detected`, `probability`, `candidates[]`, `decoded_as`, `policy`), `segments[]` each with `text_script` (layer 1) and `text_roman` (layer 2), model, stats, `version`. Indexes: `recording_id`, `job_id`, `created_at`.
-	- **gRPC `likho.transcription.v1.TranscriptionService`**: `GetTranscript(id)`, `ListTranscripts(recording_id)`, `Transcribe(recording_id, model, policy) → stream TranscribeEvent` (direct streaming use by the CLI and tests), `Retransliterate(transcript_id) → new version`, `ListEngines()`, `CancelJob(job_id)`.
-	- **Env**: `MONGO_URL`, `S3_*` (read-only), `LANGUAGE_GRPC_ADDR`, `MODEL_CACHE_DIR`, `DEFAULT_MODEL=turbo`, `DEVICE=auto`, `COMPUTE_TYPE=auto`, `WORKER_CONCURRENCY=1`.
-	- **Consumes** `likho.transcription.requested`, `likho.vocabulary.updated` (refresh hotwords). **Produces** `likho.transcription.segment`, `.completed`, `.failed`.
-	- Scaling: workers share one durable consumer, so starting a second worker (another machine, a GPU box) splits the queue with no code change. A job is acknowledged only when the transcript is stored; while it runs the worker reports "in progress" so a long call is not redelivered, and a crashed worker's job is handed to another one.
+	- The Hinglish rules are not in this repository: it installs the `likho-hinglish` package from likho-language, so both services write Hinglish with the same code.
+	- **Owns (MongoDB `likho_transcription.transcripts`)**: the two-layer document. Language detection block (`detected`, `probability`, `candidates[]`, `decoded_as`, `policy`), `segments[]` each with `text_script` (layer 1) and `text_roman` (layer 2), model, stats, `vocabulary_version`, `version`. A version is never changed; a re-transliteration is a new version. Indexes: `recording_id + version` (unique), `job_id` (unique).
+	- **gRPC `likho.transcription.v1.TranscriptionService`**: `GetTranscript(id)`, `ListTranscripts(recording_id)`, `Transcribe(recording_id, media_id, workspace_id, model, policy) → stream` (started, each line, the stored transcript), `Retransliterate(transcript_id) → new version`, `ListEngines()`, `CancelJob(job_id)`.
+	- **Env**: `MONGO_URL`, `NATS_URL`, `LANGUAGE_GRPC_ADDR`, `MEDIA_GRPC_ADDR`, `DEFAULT_MODEL=turbo`, `DEVICE=auto`, `COMPUTE_TYPE=auto`, `WORKER_ENABLED=true`, `JOB_MAX_DELIVER=3`. The audio is downloaded through a link from likho-media, so this service holds no object-store keys.
+	- **Consumes** `likho.transcription.requested`. **Produces** `likho.live.segment` (each line as it is written), `likho.transcription.completed`, `likho.transcription.failed`, and `likho.dead` for a request that could not be done.
+	- What a caller can rely on:
+		- A job is not lost: it is acknowledged only when the transcript is stored. While it runs the worker reports "in progress"; a crashed worker's job is handed to another one.
+		- A job is not done twice: a recording that already has a transcript reports that transcript unless the job says `force`, and event ids are derived from the job.
+		- A service that is down means a retry (3 attempts). Audio that cannot be read fails at once.
+		- When likho-language is down, lines are written with the built-in rules and the transcript is stored with `vocabulary_version` 0, to be re-transliterated later.
+	- Scaling: workers share one durable consumer, so starting a second worker (another machine, a GPU box) splits the queue with no code change.
 	- ---
 - ## likho-language
-	- Python 3.13, uv, grpcio, SQLAlchemy 2 + Alembic (PostgreSQL), nats-py. The transliteration rules move here from `transcriber/hinglish/` as an installable package (`likho-hinglish`) that likho-transcription also depends on for its offline fallback.
+	- Python 3.12, uv, grpcio, SQLAlchemy 2 + Alembic (PostgreSQL), nats-py. The transliteration rules move here from `transcriber/hinglish/` as an installable package (`likho-hinglish`) that likho-transcription also depends on for its offline fallback.
 	- ```
 	  likho-language/
 	  ├── src/
