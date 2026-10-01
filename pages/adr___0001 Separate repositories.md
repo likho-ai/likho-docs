@@ -1,0 +1,10 @@
+- **Status:** accepted, 2026-10-01
+- ## Decision
+	- Every service, every micro-frontend and every shared package lives in its own repository in the `likho-ai` organisation. Shared interfaces live in `likho-contracts`; the shared local stack and CI in `likho-infra`.
+- ## Why
+	- Each piece can be built, tested, released and rolled back alone.
+	- A service is written in the language that fits its job: Python for speech, Go for media and search, TypeScript for the API and the web.
+	- The transcription workers are the bottleneck; they scale by adding workers without touching anything else.
+- ## Cost
+	- More repositories to keep in step. Guards: one contracts repository with breaking-change checks, reusable CI workflows, grouped dependency updates.
+	- One developer at the start. So the work is ordered in waves, and a working product exists after the first five services.

@@ -1,0 +1,11 @@
+- **Status:** accepted, 2026-10-01
+- ## Decision
+	- One event bus: NATS JetStream. Kafka is not run alongside it.
+- ## Why
+	- The NATS container uses about 8 MB of memory when idle (measured on the development machine). A development Kafka broker typically needs around 1 GB (not measured here).
+	- A transcription job runs for minutes. JetStream handles this directly: the worker acknowledges when the transcript is stored and reports "in progress" while it works; a crashed worker's job is delivered to another one.
+	- Publishing the same event twice stores it once (the event id is sent as `Nats-Msg-Id`). This was tested.
+- ## Layout
+	- Three streams: `LIKHO` (business events, 30 days), `LIKHO_LIVE` (live transcript lines, 1 day), `LIKHO_KEEP` (corrections made by people, for ever). Subjects, producers and consumers are listed in `likho-contracts/streams.yaml`.
+- ## If this changes
+	- Every event is a CloudEvent published through one small module per language, so moving to Kafka later changes that module, not the services.

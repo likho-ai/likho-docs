@@ -1,0 +1,9 @@
+- **Status:** accepted, 2026-10-01
+- ## Decision
+	- `likho-api` is written with NestJS. The web apps talk to it with GraphQL. Other applications and scripts use a REST API described by OpenAPI. Services talk to each other with gRPC and events.
+- ## Why
+	- NestJS gives a fixed structure (modules, controllers, services, guards) that matches how the team already organises its Express applications.
+	- GraphQL is built into NestJS, and it suits micro-frontends: each small app asks only for the fields its screen shows, and typed hooks are generated from one schema file.
+	- REST stays for everything outside the web apps because it is what scripts, Postman and other applications expect.
+- ## Not chosen
+	- tRPC: it shares types only between TypeScript programs and is not a natural fit inside NestJS.

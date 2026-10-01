@@ -1,0 +1,28 @@
+/* Likho colours on top of the Logseq theme. */
+:root {
+  --ls-link-text-color: #4f39f6;
+  --ls-link-text-hover-color: #372aac;
+  --ls-active-primary-color: #7c3aed;
+  --ls-title-text-color: #1e1a4d;
+  --ls-page-inline-code-bg-color: #eef2ff;
+}
+
+html[data-theme='dark'] {
+  --ls-link-text-color: #a78bfa;
+  --ls-link-text-hover-color: #c4b4ff;
+  --ls-active-primary-color: #8b5cf6;
+  --ls-title-text-color: #f8fbff;
+  --ls-page-inline-code-bg-color: #1a1f3a;
+}
+
+.page-title,
+h1.title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Wide tables scroll inside their block instead of stretching the page. */
+.block-content table {
+  display: block;
+  overflow-x: auto;
+}

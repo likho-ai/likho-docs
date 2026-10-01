@@ -1,0 +1,10 @@
+- **Status:** accepted, 2026-10-01
+- ## Decision
+	- Every transcript line stores two texts: layer 1 in the script that was spoken, layer 2 in Hinglish. The detected language, its probability and the other candidates are stored with the transcript.
+- ## Why
+	- Speech models write Hindi and Urdu far better in Devanagari than in Roman letters; asking the model for Hinglish directly was tried and gave worse text.
+	- With layer 1 saved, the Hinglish can be rebuilt at any time. A new spelling is applied to every old transcript in seconds, and the speech model does not run again.
+	- Search works in either script. Corrections on either layer are kept beside the original and become training examples.
+- ## Consequences
+	- The transliteration rules and the spelling table are a service of their own (`likho-language`), called once per line while a call is transcribed.
+	- An engine that writes Hinglish itself declares that, and its lines skip the transliteration step.

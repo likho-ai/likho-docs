@@ -1,0 +1,15 @@
+{:meta/version 1
+
+ ;; Pages are plain Markdown files in pages/. No journals.
+ :preferred-format :markdown
+ :pages-directory "pages"
+ :feature/enable-journals? false
+
+ ;; Publishing: every page is public and the site opens on Introduction.
+ :publishing/all-pages-public? true
+ :default-home {:page "Introduction"}
+
+ :ui/show-brackets? false
+ :ui/enable-tooltip? true
+ :ref/default-open-blocks-level 2
+ :property-pages/enabled? false}

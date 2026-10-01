@@ -1,0 +1,26 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    name: Publish the Logseq graph to GitHub Pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: logseq/publish-spa@v0.3.1
+        with:
+          graph-directory: .
+          output-directory: www
+      - name: Add a nojekyll file so asset paths are served as they are
+        run: touch $GITHUB_WORKSPACE/www/.nojekyll
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: www
