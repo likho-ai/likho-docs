@@ -8,7 +8,7 @@
 	  | likho-media | 4010 | 5010 | | MongoDB | 27017 |
 	  | likho-transcription | 4020 | 5020 | | Redis | 6379 |
 	  | likho-language | 4030 | 5030 | | NATS (clients / monitoring) | 4222 / 8222 |
-	  | likho-search | 4040 | 5040 | | MinIO (S3 / console) | 9000 / 9001 |
+	  | likho-search | 4040 | 5040 | | Object store (SeaweedFS, S3 API) | 9000 |
 	  | likho-analytics | 4050 | 5050 | | Meilisearch | 7700 |
 	  | likho-insights | 4060 | 5060 | | Grafana / OTLP gRPC / OTLP HTTP | 3000 / 4317 / 4318 |
 	  | likho-ml | 4070 | 5070 | | ClickHouse (W3) / Keycloak (W3) | 8123 / 8180 |
@@ -77,7 +77,7 @@
 	  ├── nginx/nginx.conf                    # routes /, /graphql, /api, /events (no buffering), /media
 	  ├── postgres/init/00-databases.sql      # CREATE DATABASE/ROLE per service
 	  ├── nats/streams.sh                     # creates the stream and consumers from likho-contracts/streams.yaml
-	  ├── minio/init.sh                       # buckets: likho-audio, likho-normalized, likho-peaks, likho-models
+	  ├── objectstore/buckets.sh                     # buckets: likho-audio, likho-normalized, likho-peaks, likho-models
 	  ├── grafana/dashboards/                 # service overview, consumer lag, transcription speed
 	  ├── k8s/
 	  │   ├── charts/likho-service/           # one generic Helm chart reused by every service
@@ -175,25 +175,35 @@
 	- **GraphQL surface (what the web apps call)**: queries `recordings`, `recording`, `jobs`, `transcript`, `transcriptVersions`, `search`, `glossary`, `spellings`, `models`, `settings`, `statsOverview`, `me`; mutations `requestUpload`, `createJob`, `cancelJob`, `correctSegment`, `retransliterate`, `upsertGlossaryTerm`, `upsertSpelling`, `setDefaultModel`, `updateSettings`, `login`, `logout`; subscription `jobEvents(jobId)` for live lines. Each micro-frontend asks only for the fields its screen shows; types and hooks are generated from `schema.graphql`.
 	- ---
 - ## likho-media
-	- Go, chi (HTTP), connect-go (gRPC), minio-go, nats.go (JetStream), pgx + sqlc, ffmpeg in the image, OpenTelemetry. golangci-lint, `go test`, Testcontainers.
+	- **Built.** Repository: https://github.com/likho-ai/likho-media
+	- Go, Connect (answers plain gRPC too), pgx (PostgreSQL), minio-go (S3), nats.go (JetStream), FFmpeg in the image. golangci-lint, `go test` (73 tests against the local stack).
 	- ```
 	  likho-media/
-	  ├── cmd/media/main.go
+	  ├── cmd/likho-media/main.go
 	  ├── internal/
-	  │   ├── config/                  # env → struct
-	  │   ├── httpapi/                 # POST /media/uploads (tus-style resumable), GET /media/{id}/audio (Range), /peaks
-	  │   ├── grpcapi/                 # MediaService
-	  │   ├── ingest/                  # sha256, dedupe, probe, normalize (ffmpeg → 16 kHz mono wav), peaks
-	  │   ├── watch/                   # optional watched folder → same ingest pipeline
-	  │   ├── store/                   # MinIO buckets + Postgres queries (sqlc)
-	  │   └── events/                  # produce media.uploaded / media.ready
-	  ├── db/migrations/  db/queries/
+	  │   ├── config/      # environment → settings
+	  │   ├── links/       # signed upload and download links (HMAC)
+	  │   ├── httpapi/     # PUT /media/uploads/{id}, GET /media/{id}/original|audio|peaks (Range)
+	  │   ├── rpc/         # MediaService
+	  │   ├── ingest/      # workers: probe, waveform, playback copy, events
+	  │   ├── audio/       # ffprobe / ffmpeg, peaks
+	  │   ├── store/       # PostgreSQL: the media table is also the work queue
+	  │   ├── objects/     # S3
+	  │   └── events/      # uploaded / ready / failed
 	  └── Dockerfile
 	  ```
-	- **Owns** MinIO buckets `likho-audio` (originals), `likho-normalized` (16 kHz wav), `likho-peaks` (JSON); PostgreSQL `likho_media`: `media(id, sha256 unique, original_key, normalized_key, peaks_key, content_type, size_bytes, duration_s, channels, sample_rate, status, created_at)`.
-	- **gRPC `likho.media.v1.MediaService`**: `GetMedia(id)`, `CreateUpload(name, size, sha256?) → upload URL`, `GetDownloadUrl(id, kind[original|normalized|peaks]) → presigned URL`, `DeleteMedia(id)`.
-	- **Env**: `DATABASE_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `WATCH_DIR` (optional), `MAX_UPLOAD_MB`.
-	- **Produces** `likho.media.uploaded`, `likho.media.ready`.
+	- **The original is never changed.** The speech model reads a recording exactly as it was uploaded. Measured on real calls: transcribing a converted 16 kHz copy changed about one word in seven, and a lossless copy was twelve times the size of a telephone MP3.
+	- **Playback.** MP3, AAC, FLAC and plain WAV are played by the browser as they are, so nothing is stored twice. For telephone codecs (A-law, mu-law, GSM, AMR) an MP3 copy is made once.
+	- **Owns** buckets `likho-audio` (originals), `likho-normalized` (playback copies, only where needed), `likho-peaks` (waveforms); PostgreSQL `likho_media.media`.
+	- **gRPC `likho.media.v1.MediaService`**: `CreateUpload(workspace, recording, name, sha256?) → upload link`, `GetMedia(id)`, `GetDownloadUrl(id, kind[original|normalized|peaks]) → signed link`, `DeleteMedia(id)`.
+	- **Links.** The object store is never reachable from outside. A link points at likho-media through the gateway, is valid for one thing and expires (uploads 1 hour, downloads 15 minutes).
+	- **Env**: `DATABASE_URL`, `NATS_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `PUBLIC_URL`, `LINK_SECRET`, `MAX_UPLOAD_MB`, `WORKERS`.
+	- **Produces** `likho.media.uploaded`, then `likho.media.ready` or `likho.media.failed`.
+	- What a caller can rely on:
+		- A file is not lost when the service dies: a worker claims the oldest waiting file, and a file whose worker died is claimed again. Several instances share the work.
+		- An event is not lost when the bus is down: the result is stored first and the event is sent until the bus confirms it.
+		- The same content uploaded again is reported (`duplicate_of`); a caller that knows the checksum is spared the upload.
+	- Not built yet: resumable uploads for very large files, and the watched folder (the command line tool `likho-transcribe --watch` covers local folders today).
 	- ---
 - ## likho-transcription
 	- **Built.** Repository: https://github.com/likho-ai/likho-transcription
@@ -223,7 +233,7 @@
 	- **Owns (MongoDB `likho_transcription.transcripts`)**: the two-layer document. Language detection block (`detected`, `probability`, `candidates[]`, `decoded_as`, `policy`), `segments[]` each with `text_script` (layer 1) and `text_roman` (layer 2), model, stats, `vocabulary_version`, `version`. A version is never changed; a re-transliteration is a new version. Indexes: `recording_id + version` (unique), `job_id` (unique).
 	- **gRPC `likho.transcription.v1.TranscriptionService`**: `GetTranscript(id)`, `ListTranscripts(recording_id)`, `Transcribe(recording_id, media_id, workspace_id, model, policy) → stream` (started, each line, the stored transcript), `Retransliterate(transcript_id) → new version`, `ListEngines()`, `CancelJob(job_id)`.
 	- **Env**: `MONGO_URL`, `NATS_URL`, `LANGUAGE_GRPC_ADDR`, `MEDIA_GRPC_ADDR`, `DEFAULT_MODEL=turbo`, `DEVICE=auto`, `COMPUTE_TYPE=auto`, `WORKER_ENABLED=true`, `JOB_MAX_DELIVER=3`. The audio is downloaded through a link from likho-media, so this service holds no object-store keys.
-	- **Consumes** `likho.transcription.requested`. **Produces** `likho.live.segment` (each line as it is written), `likho.transcription.completed`, `likho.transcription.failed`, and `likho.dead` for a request that could not be done.
+	- **Consumes** `likho.transcription.requested`. Downloads the original file through a link from likho-media. **Produces** `likho.live.segment` (each line as it is written), `likho.transcription.completed`, `likho.transcription.failed`, and `likho.dead` for a request that could not be done.
 	- What a caller can rely on:
 		- A job is not lost: it is acknowledged only when the transcript is stored. While it runs the worker reports "in progress"; a crashed worker's job is handed to another one.
 		- A job is not done twice: a recording that already has a transcript reports that transcript unless the job says `force`, and event ids are derived from the job.
@@ -274,7 +284,7 @@
 	  | --- | --- | --- | --- |
 	  | **likho-analytics** | Go, clickhouse-go, nats.go | ClickHouse `events` (raw CloudEvents) + materialized views: `calls_daily`, `speed_daily`, `language_mix` | `AnalyticsService.GetOverview / GetTimeseries / GetLanguageMix`; consumes every subject |
 	  | **likho-insights** | Python, Anthropic SDK | MongoDB `insights` (summary, products[], sentiment, qa_score, model, cost) | `InsightsService.GetInsights / Analyze`; consumes `transcription.completed`; produces `insights.completed` |
-	  | **likho-ml** | Python, SQLAlchemy, boto3 | PostgreSQL `likho_ml`: `models`, `evaluations`, `training_examples`, `training_runs`; MinIO `likho-models` | `ModelRegistry.ListModels / RegisterModel / SetDefault / ListEvaluations / ExportDataset / StartTrainingRun`; consumes `transcript.corrected` |
+	  | **likho-ml** | Python, SQLAlchemy, boto3 | PostgreSQL `likho_ml`: `models`, `evaluations`, `training_examples`, `training_runs`; bucket `likho-models` | `ModelRegistry.ListModels / RegisterModel / SetDefault / ListEvaluations / ExportDataset / StartTrainingRun`; consumes `transcript.corrected` |
 	  | **likho-cli** | Python, SQLite | local `likho.db` | today's CLI; optional `--server` to push results to the platform |
 	- Fine-tuning needs a GPU. likho-ml collects and exports the data and launches the run on a GPU machine or a cloud job; it does not train on this CPU box.
 	- ---
