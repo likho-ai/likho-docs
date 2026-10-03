@@ -29,5 +29,5 @@
 	  | likho-docs | This site |
 - ## Status
 	- Wave 0 (foundation) is done: the local stack, the contracts, the design system and this site.
-	- Wave 1 is in progress. Built and tested: **likho-media**, **likho-transcription** and **likho-language**. Together they already do the core job: a recording is uploaded, checked and stored; a job on the event bus becomes live lines and a stored two-layer transcript.
-	- Next: likho-api (login, recordings, jobs), then the web app.
+	- Wave 1 is in progress. Built and tested: **likho-api**, **likho-media**, **likho-transcription** and **likho-language**. Together they do the core job end to end: sign in, upload a recording through the gateway, watch the lines arrive, read the two-layer transcript, all over GraphQL (or REST for scripts).
+	- Next: the web app (likho-web-sdk, the shell, the library and transcript screens).

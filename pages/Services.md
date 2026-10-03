@@ -126,53 +126,31 @@
 	- Env: `VITE_API_ORIGIN` (empty in dev = same origin through the proxy). Docker image: static build served by NGINX; the same image runs behind the gateway in every environment.
 	- ---
 - ## likho-api
-	- Node 24 LTS, TypeScript, **NestJS 11** on the Fastify adapter, **GraphQL** (code-first, `@nestjs/graphql`) for the web apps, REST controllers with `@nestjs/swagger` for other apps, Drizzle ORM + drizzle-kit (PostgreSQL), ioredis, `nats` (nats.js) for JetStream, `jose` for JWTs, connect-es gRPC clients from `@likho-ai/contracts`, nestjs-pino, OpenTelemetry. pnpm, Vitest, Testcontainers for integration tests. The module layout keeps the vocabulary of the existing Express apps (controllers, services, repositories, guards instead of middlewares).
+	- **Built.** Repository: https://github.com/likho-ai/likho-api
+	- NestJS 12, Apollo Server 5 (GraphQL), REST with OpenAPI (`/api/docs`, `openapi.json`, a Postman collection), server-sent events, PostgreSQL (Drizzle), Redis (live updates between instances), NATS JetStream, Connect clients to the three services. oxlint, prettier, vitest (24 tests against the local stack; the other services faked in the test process).
 	- ```
 	  likho-api/
 	  ├── src/
-	  │   ├── main.ts                  # Nest app on Fastify: GraphQL, REST, SSE, health, Swagger
-	  │   ├── app.module.ts
-	  │   ├── config/                  # validated environment (ConfigModule)
-	  │   ├── common/                  # guards (session, permission), filters (one error shape), interceptors, request id
-	  │   ├── modules/
-	  │   │   ├── auth/                # login, session cookie, lockout, API keys, internal JWT + JWKS
-	  │   │   ├── users/               # users, roles, permission catalogue, audit log
-	  │   │   ├── recordings/          # resolver + REST controller + service + repository
-	  │   │   ├── jobs/                # selection policy, queueing, progress, cancel
-	  │   │   ├── transcripts/         # reads via gRPC, corrections, exports
-	  │   │   ├── search/  vocabulary/  models/  settings/  stats/
-	  │   │   └── live/                # SSE + GraphQL subscription fed by Redis pub/sub
-	  │   ├── events/                  # NATS JetStream publisher and consumers (media.ready, transcription.*)
-	  │   ├── clients/                 # media, transcription, language, search (gRPC)
-	  │   ├── db/
-	  │   │   ├── schema/              # users, roles, permissions, workspaces, recordings, jobs, corrections, settings, api_keys, audit_logs
-	  │   │   └── migrations/
-	  │   └── telemetry.ts
-	  ├── schema.graphql               # generated and committed: the web apps' contract
-	  ├── openapi.json                 # generated and committed: source of the Postman collection
-	  ├── test/
-	  ├── drizzle.config.ts
+	  │   ├── auth/          # users, sessions (cookie), API keys, the guard
+	  │   ├── recordings/    # recordings, jobs, the event consumers
+	  │   ├── transcripts/   # transcripts over gRPC from likho-transcription
+	  │   ├── vocabulary/    # glossary and spellings over gRPC from likho-language
+	  │   ├── settings/      # workspace settings, API keys
+	  │   ├── rest/          # /api/v1 for scripts and connectors
+	  │   ├── live/          # Redis pub/sub and /events (SSE)
+	  │   ├── bus/ clients/ db/ config/
+	  │   └── tools/         # export (schema, OpenAPI, Postman), users:add
+	  ├── schema.graphql  openapi.json  postman/
 	  └── Dockerfile
 	  ```
-	- **Owns (PostgreSQL `likho_api`)**
-	- ```
-	  users(id, email, name, status, failed_login_count, locked_until, created_at)
-	  roles, permissions, role_permissions, user_roles      sessions(id hash, user_id, expires_at, revoked_at)
-	  audit_logs(id, user_id, action, entity_type, entity_id, request_id, changes jsonb, created_at)
-	  workspaces(id, name, created_at)      workspace_members(workspace_id, user_id, role)
-	  recordings(id, workspace_id, original_name, media_id, size_bytes, duration_s, sha256,
-	             source[upload|folder|api], status[uploaded|ready|queued|transcribing|done|failed],
-	             latest_transcript_id, detected_language, created_by, created_at, updated_at)
-	  jobs(id, recording_id, model_id, language_policy, force, status[queued|running|done|failed|cancelled],
-	       progress_s, total_s, error, created_by, created_at, started_at, finished_at)
-	  segment_corrections(id, transcript_id, segment_idx, layer[script|roman], before, after, user_id, created_at)
-	  settings(workspace_id, key, value jsonb)         feature_flags(key, enabled, rules jsonb)
-	  api_keys(id, workspace_id, name, hash, last_used_at)
-	  ```
-	- **Redis**: `job:{id}:events` pub/sub channel (live segments → SSE), `job:{id}:tail` list (last 200 events so a browser that connects late catches up), sessions, rate limits.
-	- **Env**: `DATABASE_URL`, `REDIS_URL`, `MEDIA_GRPC_ADDR`, `TRANSCRIPTION_GRPC_ADDR`, `LANGUAGE_GRPC_ADDR`, `SEARCH_GRPC_ADDR`, `AUTH_SECRET`, `PUBLIC_ORIGIN`.
-	- **Produces** `likho.transcription.requested`, `likho.transcript.corrected`. **Consumes** `likho.media.ready` (mark recording ready, auto-queue if the setting is on), `likho.transcription.segment` (→ Redis → SSE), `.completed` / `.failed` (update job + recording).
-	- **GraphQL surface (what the web apps call)**: queries `recordings`, `recording`, `jobs`, `transcript`, `transcriptVersions`, `search`, `glossary`, `spellings`, `models`, `settings`, `statsOverview`, `me`; mutations `requestUpload`, `createJob`, `cancelJob`, `correctSegment`, `retransliterate`, `upsertGlossaryTerm`, `upsertSpelling`, `setDefaultModel`, `updateSettings`, `login`, `logout`; subscription `jobEvents(jobId)` for live lines. Each micro-frontend asks only for the fields its screen shows; types and hooks are generated from `schema.graphql`.
+	- **Owns (PostgreSQL `likho_api`)**: `users`, `sessions`, `workspaces`, `workspace_members`, `api_keys`, `recordings` (status: uploading → ready | failed → queued → transcribing → done), `jobs`, `settings`, `handled_events`.
+	- **GraphQL**: queries `me`, `recordings` (filter, search, pages), `recording` (with `playbackUrl`, `peaksUrl`, `jobs`, `latestTranscript`), `recordingCounts`, `jobs`, `job`, `transcript`, `transcriptVersions`, `engines`, `glossary`, `spellings`, `settings`, `apiKeys`; mutations `login`, `logout`, `requestUpload`, `deleteRecording`, `createJob`, `cancelJob`, `retransliterate`, `upsertGlossaryTerm`, `deleteGlossaryTerm`, `upsertSpelling`, `deleteSpelling`, `updateSettings`, `createApiKey`, `revokeApiKey`. The schema is committed as `schema.graphql`; the web client is generated from it.
+	- **REST** (`Authorization: Bearer lk_...`): `POST /api/v1/recordings` (upload link), `GET /api/v1/recordings`, `GET /api/v1/recordings/{id}`, `/audio`, `/transcript`, `/jobs`, `DELETE`, `GET /api/v1/jobs/{id}`, `POST /api/v1/jobs/{id}/cancel`. Errors: `{"error": {"code", "message"}}`.
+	- **Live**: `GET /events/jobs/{id}` streams each line (both layers) and the job's end; `GET /events/recordings` streams every change in the workspace. The gateway keeps `/events/` unbuffered.
+	- **Consumes** `likho.media.ready`, `likho.media.failed`, `likho.live.segment`, `likho.transcription.completed`, `likho.transcription.failed` (durable consumers named `<group>-<event>`, applied once by event id). **Produces** `likho.transcription.requested`.
+	- **Env**: `DATABASE_URL`, `REDIS_URL`, `NATS_URL`, `MEDIA_GRPC_ADDR`, `TRANSCRIPTION_GRPC_ADDR`, `LANGUAGE_GRPC_ADDR`, `PUBLIC_ORIGIN`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_EMAIL/PASSWORD` (the first admin and workspace), `CONSUMERS_ENABLED`, `CONSUMER_GROUP`.
+	- Sign-in is a session cookie backed by a row (revocation is immediate); passwords are scrypt; API keys are shown once and stored hashed. Keycloak and short-lived JWTs between services remain Wave 3.
+	- Not built yet: corrections (`correctSegment`, `likho.transcript.corrected`), search, the dialer connector, user management screens beyond `users:add`.
 	- ---
 - ## likho-media
 	- **Built.** Repository: https://github.com/likho-ai/likho-media
