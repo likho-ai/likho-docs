@@ -44,34 +44,32 @@
 	- **Audio playback:** likho-api asks likho-media for a presigned URL valid for a few minutes, so the audio element can seek with range requests without carrying credentials.
 	- A NestJS auth module provides the session, cookie and JWKS pieces in likho-api, reusing the lockout, permission catalogue and audit-log design of an existing internal application. Moving to Keycloak later replaces only the login step; cookie and internal JWT stay as they are.
 - ## 3. Kubernetes: deployments and pod load balancing
-	- Each service gets the same four objects from one shared Helm chart (`likho-service`):
+	- Built in Wave 2 as its own repository, [likho-deploy](https://github.com/likho-ai/likho-deploy): two Helm charts and Skaffold. `charts/likho` renders the same objects for every service from one template, driven by values:
 	- ```
-	  Deployment   replicas: N, rolling update, liveness /healthz, readiness /readyz, resources
-	  Service      ClusterIP — one stable name (likho-api:4000) that spreads connections over the pods
-	  HPA / KEDA   scale on CPU (api, web) or on queue depth (transcription, via the NATS scaler)
-	  ConfigMap + Secret   environment variables; secrets from Google Secret Manager in the cloud
+	  Deployment   replicas, rolling update (Recreate where a volume is attached), liveness /healthz, readiness /readyz, resources
+	  Service      one stable name - likho-api:4000, likho-media:5010 - the names the .env files already use
+	  ConfigMap    <service>-env: the repository's .env.<environment>, synced into environments/<environment>/env.yaml
+	  Secret       <service>-secrets: the .env.<environment>.local file, applied straight to the cluster by scripts/secrets.py
 	  ```
+	- `charts/likho-stack` runs the backing services (PostgreSQL, MongoDB, Redis, NATS JetStream, SeaweedFS, Meilisearch) as StatefulSets on persistent volumes, with the database users, the streams and the buckets created from one Secret on the first start. Managed services replace a part by disabling it and pointing the service's `.env.<environment>.local` at the managed address.
 	- "Pod load balancer" in practice:
 	- **Inside the cluster** the Service does it: a client connects to `likho-language:5030` and Kubernetes picks a healthy pod.
-	- **gRPC needs one extra step.** gRPC keeps a single long connection, so all calls would land on one pod. The gRPC Services are therefore headless (`clusterIP: None`) and the clients use `dns:///…` with round-robin, which balances per call.
-	- **From outside** one `LoadBalancer` Service in front of the gateway gets the public IP (a Google Cloud load balancer on GKE, `minikube tunnel` locally).
-	- **Workers are not load-balanced at all** — transcription pods pull jobs from NATS, so adding pods is the scaling.
-	- Stateful pieces (PostgreSQL, MongoDB, Redis, NATS, Meilisearch) run as StatefulSets from their official Helm charts on minikube; in the cloud the databases move to managed services where that is cheaper to operate.
+	- **gRPC needs one extra step.** gRPC keeps a single long connection, so all calls would land on one pod. The gRPC Services (media, transcription, language) are therefore headless (`clusterIP: None`): a client that resolves the name gets the pods' own addresses. The clients still connect with plain `host:port`; switching them to `dns:///` with round-robin is the step to take when a gRPC service first runs more than one replica.
+	- **From outside** the cluster's Gateway sends the hostname to `likho-gateway` (section 4); without one, the gateway Service becomes a `LoadBalancer`.
+	- **Workers are not load-balanced at all** - transcription pods pull jobs from NATS, so adding pods is the scaling. A stopping transcription pod gets fifteen minutes to finish the job in hand.
+	- Not built yet: HPA / KEDA scaling on queue depth, PodDisruptionBudgets, NetworkPolicies, the observability profile.
 - ## 4. Ingress with NGINX
-	- **Compose (now):** a plain `nginx` container with one config file: `/` → web, `/graphql`, `/api`, `/events` → likho-api (`proxy_buffering off` on `/events` so live lines are not held back), `/media` → likho-media (large uploads, range requests).
-	- **Kubernetes (Wave 2):** the well-known community controller `ingress-nginx` — the one in most tutorials and in minikube's `ingress` addon — was retired by the Kubernetes project: announced November 2025, maintenance ended March 2026. New clusters should not start on it. The supported NGINX route is the **Gateway API** with **NGINX Gateway Fabric**: one `Gateway` and an `HTTPRoute` per service, kept in `likho-infra/k8s/gateway/`.
-	- The same `HTTPRoute` files work on GKE's own Gateway classes, so the choice between NGINX and Google's load balancer in the cloud can be made in Wave 3 without rewriting routes.
-	- To check when Wave 2 starts: current NGINX Gateway Fabric version and its minikube install steps.
-- ## 5. minikube and Skaffold (local Kubernetes, Wave 2)
+	- **Compose (now):** a plain `nginx` container with one config file: `/` → web, `/graphql`, `/api`, `/events` → likho-api (`proxy_buffering off` on `/events` so live lines are not held back), `/media` → likho-media (large uploads, range requests), `/mfe/…` → the web apps.
+	- **Kubernetes (built):** the same nginx runs inside the cluster as `likho-gateway`, with the cluster's Services as upstreams (looked up at request time, so it serves while a service is being replaced). It keeps the routes and the upload and streaming settings in one place for every environment.
+	- The public hostname is an `HTTPRoute` (Gateway API) from the cluster's `Gateway` to `likho-gateway`. The community controller `ingress-nginx` was retired by the Kubernetes project (announced November 2025, maintenance ended March 2026), so no `Ingress` object is used. The Gateway itself - NGINX Gateway Fabric on our own clusters, GKE's Gateway in the cloud - and its TLS certificate belong to the cluster, not to the chart; the same route works on both.
+- ## 5. minikube and Skaffold (local Kubernetes)
 	- ```powershell
-	  winget install Kubernetes.minikube
-	  winget install Helm.Helm
-	  winget install GoogleContainerTools.Skaffold
-	  minikube start --driver=docker --cpus=4 --memory=4g --profile likho
-	  skaffold dev            # from likho-infra: builds the repos next to it, deploys, reloads on change
-	  minikube tunnel -p likho   # gives the gateway an address; open http://likho.localhost
+	  cd D:\likho\likho-deploy
+	  .\scripts\local.ps1 up     # start minikube (docker driver, 4 CPUs, 5 GB), make the Secrets, build the seven images
+	                              # inside the cluster, deploy both charts, forward the gateway to http://localhost:8080, watch
 	  ```
-	- `kubectl` 1.36 is already installed. minikube takes 4 GB, so on this machine it replaces the Compose stack while it runs, and the Whisper worker stays on the host, connected to the cluster's NATS through a forwarded port. Compose remains the everyday way to work on one service; minikube is for testing the charts and routes before the cloud.
+	- The local cluster runs the **staging configuration** (the staging `env.yaml` and the `.env.staging.local` secrets) with `http://localhost:8080` as its address and the development admin login, so what is rehearsed on the machine is what staging gets. Skaffold tags images by content: a rebuild of unchanged sources is a no-op. The Compose stack remains the everyday way to work on one service; minikube is for the charts and the routes.
+	- Releases: a change of the image tag in `environments/<environment>/values.yaml`, committed, then `skaffold run -p staging` (or `production`); a rollback is the same change the other way.
 - ## 6. Google Cloud (Wave 3)
 	- | Need | Google Cloud service |
 	  | --- | --- |
