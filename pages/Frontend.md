@@ -39,3 +39,7 @@
 	- Seven repositories to keep on the same React and `@likho/ui` versions: Renovate group updates and a nightly "all apps against latest shell" Playwright run in `likho-web-shell`.
 	- A slower first load than one bundle: shared singletons, route-level loading and `modulepreload` for the app behind the current URL.
 	- The fallback if this proves too heavy: the same code as packages in one Vite app. The folder layout and the URL contract stay identical, so the change is mechanical.
+- ## Status
+	- **Built (Wave 1):** likho-web-sdk (typed GraphQL operations, hooks, uploads, live updates), likho-web-shell (sign-in, navigation, theme, home, vocabulary, settings, the remote loader), likho-mfe-library (`/recordings`), likho-mfe-transcript (`/recordings/:id`). The manifest is `nginx/mfe/manifest.json` in likho-infra.
+	- Two things learned while building it, now part of the design: each app ships its own stylesheet (the shell cannot know an app's classes) **scoped under its root element** (`[data-mfe="…"]`), so the same utility class in two apps never fights over an element; and packages are installed from the **tarball attached to a GitHub release** (likho-ui, likho-web-sdk, the contracts), because a git sub-folder dependency did not install reliably.
+	- Not built yet: likho-mfe-vocabulary and likho-mfe-admin (their screens live in the shell for now), likho-mfe-insights, the embeddable `TranscriptPanel`, Renovate.

@@ -29,5 +29,5 @@
 	  | likho-docs | This site |
 - ## Status
 	- Wave 0 (foundation) is done: the local stack, the contracts, the design system and this site.
-	- Wave 1 is in progress. Built and tested: **likho-api**, **likho-media**, **likho-transcription** and **likho-language**. Together they do the core job end to end: sign in, upload a recording through the gateway, watch the lines arrive, read the two-layer transcript, all over GraphQL (or REST for scripts).
-	- Next: the web app (likho-web-sdk, the shell, the library and transcript screens).
+	- Wave 1 is done: **likho-api**, **likho-media**, **likho-transcription**, **likho-language**, and the web app (**likho-web-sdk**, **likho-web-shell**, **likho-mfe-library**, **likho-mfe-transcript**). A person signs in, uploads a call (or records one from the microphone), watches the lines arrive, reads both layers, plays the audio from any line, and downloads the transcript. A browser test drives the whole product through the gateway.
+	- Next (Wave 2): the deploy repository (Kubernetes, Skaffold, the environments), the dialer connector, search, corrections, user management.
