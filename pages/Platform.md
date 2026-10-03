@@ -65,11 +65,12 @@
 - ## 5. minikube and Skaffold (local Kubernetes)
 	- ```powershell
 	  cd D:\likho\likho-deploy
-	  .\scripts\local.ps1 up     # start minikube (docker driver, 4 CPUs, 5 GB), make the Secrets, build the seven images
-	                              # inside the cluster, deploy both charts, forward the gateway to http://localhost:8080, watch
+	  .\scripts\local.ps1 up     # start minikube (docker driver, 4 CPUs, 5 GB), make the Secrets, install the backing
+	                              # services (Helm), build the seven images inside the cluster and deploy the product
+	                              # (Skaffold), forward the gateway to http://localhost:8080, rebuild what changes
 	  ```
-	- The local cluster runs the **staging configuration** (the staging `env.yaml` and the `.env.staging.local` secrets) with `http://localhost:8080` as its address and the development admin login, so what is rehearsed on the machine is what staging gets. Skaffold tags images by content: a rebuild of unchanged sources is a no-op. The Compose stack remains the everyday way to work on one service; minikube is for the charts and the routes.
-	- Releases: a change of the image tag in `environments/<environment>/values.yaml`, committed, then `skaffold run -p staging` (or `production`); a rollback is the same change the other way.
+	- The local cluster runs the **staging configuration** (the staging `env.yaml` and the `.env.staging.local` secrets) with `http://localhost:8080` as its address and the development admin login, so what is rehearsed on the machine is what staging gets. Skaffold tags images by content: a rebuild of unchanged sources is a no-op. The backing services are a Helm release Skaffold never touches, so a redeploy never restarts a database or the event bus. The Compose stack remains the everyday way to work on one service; minikube is for the charts and the routes. Proven on 3 October 2026: the web app's browser test passes against the local cluster end to end (upload, transcription in the cluster, both layers, playback, delete).
+	- Releases: a change of the image tag in `environments/<environment>/values.yaml`, committed, then `scripts/deploy.ps1 staging` (or `production`): both charts as Helm releases; a rollback is `helm rollback` or the same change the other way. One setting exists only for a cluster: likho-media's `INTERNAL_URL`, the address the transcription worker downloads originals from, since the public address is not reachable from inside.
 - ## 6. Google Cloud (Wave 3)
 	- | Need | Google Cloud service |
 	  | --- | --- |
