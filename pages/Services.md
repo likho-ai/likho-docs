@@ -150,7 +150,7 @@
 	- **Consumes** `likho.media.ready`, `likho.media.failed`, `likho.live.segment`, `likho.transcription.completed`, `likho.transcription.failed` (durable consumers named `<group>-<event>`, applied once by event id). **Produces** `likho.transcription.requested`.
 	- **Env**: `DATABASE_URL`, `REDIS_URL`, `NATS_URL`, `MEDIA_GRPC_ADDR`, `TRANSCRIPTION_GRPC_ADDR`, `LANGUAGE_GRPC_ADDR`, `PUBLIC_ORIGIN`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_EMAIL/PASSWORD` (the first admin and workspace), `CONSUMERS_ENABLED`, `CONSUMER_GROUP`.
 	- Sign-in is a session cookie backed by a row (revocation is immediate); passwords are scrypt; API keys are shown once and stored hashed. Keycloak and short-lived JWTs between services remain Wave 3.
-	- Not built yet: corrections (`correctSegment`, `likho.transcript.corrected`), search, the dialer connector, user management screens beyond `users:add`.
+	- Not built yet: corrections (`correctSegment`, `likho.transcript.corrected`), user management screens beyond `users:add`. Built since: `search`, `requestImport` / `imports`, recording `attributes` and `source`, `likho.recording.deleted` (v0.2).
 	- ---
 - ## likho-media
 	- **Built.** Repository: https://github.com/likho-ai/likho-media
@@ -247,15 +247,20 @@
 	- **Produces** `likho.vocabulary.updated`.
 	- ---
 - ## likho-search
-	- Go, connect-go, nats.go, meilisearch-go.
-	- ```
-	  likho-search/
-	  ├── cmd/search/main.go
-	  └── internal/  config/  indexer/ (consume → fetch transcript via gRPC → index)  grpcapi/  meili/
-	  ```
-	- **Owns** Meilisearch index `segments`: one document per segment `{id, transcript_id, recording_id, workspace_id, idx, start, end, text_roman, text_script, language, recording_name, created_at}`; searchable `text_roman`, `text_script`, `recording_name`; filterable `workspace_id`, `language`, `created_at`. Typo tolerance on (helps with variable Hinglish spellings).
-	- **gRPC `likho.search.v1.SearchService`**: `Search(query, filters, page) → hits with highlights + timestamps`, `Reindex(transcript_id)`, `DeleteRecording(recording_id)`.
-	- **Consumes** `likho.transcription.completed`, `likho.transcript.corrected`.
+	- Built (v0.1, 3 October 2026): Go, Connect, meilisearch-go, nats.go. `cmd/likho-search`, `internal/{config, index, indexer, events, rpc, app}`.
+	- **Owns** the Meilisearch index `segments`: one document per transcript line `{id, transcript_id, recording_id, workspace_id, idx, start, end, text_roman, text_script, language, created_at}`; `text_roman` and `text_script` searchable (typo tolerance on, since Hinglish is spelled many ways), the rest filterable. One transcript per recording is indexed: the latest. Names and the other facts about a recording are likho-api's, which decorates the hits.
+	- **gRPC `likho.search.v1.SearchService`**: `Search(workspace, query, language?, recording?, since?, until?, page, page_size)` → hits with both texts, the matches wrapped in `<mark>`, timestamps; `Reindex(transcript, workspace)`; `DeleteRecording(recording)`.
+	- **Consumes** `likho.transcription.completed` and `likho.transcript.corrected` (fetches the transcript from likho-transcription and replaces the recording's lines), `likho.recording.deleted`.
+	- In the product: likho-api's `search` query and `GET /api/v1/search`, the shell's Search page (`/search?q=…&lang=…`), a hit opens `/recordings/:id?t=<seconds>` where the transcript app marks the line and stands the player there. HTTP 4040, gRPC 5040.
+	- ---
+- ## likho-connector-ameyo
+	- Built (v0.1, 3 October 2026): Node 24, TypeScript, `nats`, `pg`, `mssql`. `src/{config, ameyo, dialer, likho, state, policy, importer, schedule, bus, writeback, app, cli}`.
+	- **Owns** PostgreSQL `likho_connector`: `calls` (which calls were fetched, with what result), `cursors` (where the schedule is), `handled_events`.
+	- **Three ways a call comes in.** By **id**: a person pastes a `crt_object_id` in the library's "From the dialer" panel (likho-api's `requestImport`, event `likho.import.requested`), or `likho-connector-ameyo import <id>` on the command line. By **schedule**: every few minutes the new calls since the cursor are read from the dialer's reporting database (read only), judged by the policy - campaigns, shortest talk time - and fetched within a daily budget (one CPU transcribes a small share of a day). By **backfill**: a window of call times, from the command line.
+	- **How a call travels:** the details from the dialer's database (campaign, agent, disposition, call time, talk time, phone masked to its last digits) → the audio from the dialer's voice-log API (`downloadVoiceLog` by `crtObjectId`) → `POST /api/v1/recordings` with `source: ameyo`, `externalId` and the details as attributes, the file PUT to likho-media → the workspace's auto-transcribe (or a job when the recording was already there) → `likho.import.completed` or `likho.import.failed` with a reason and a code (`not_found`, `no_recording`, `unavailable`, `rejected`, `error`); a dialer that does not answer makes the request come back later.
+	- **Write-back** (off until allowed): on `likho.transcription.completed`, the Hinglish text into the CRM (MS SQL Server) through one statement with `@externalId` and `@transcript`.
+	- **Nothing of the company is in the repository.** The dialer's address and credentials, the API key, and the SQL that names tables and campaigns are `.env.<environment>.local` and `queries/*.local.sql`, both ignored by git; the repository holds the column contract and an example of each query.
+	- Still to do with the company: the dialer API login the connector may use, whether the reporting database may be read, which campaigns and how many calls a day (the policy), and whether the CRM may be written.
 	- ---
 - ## Wave 3 services (outline)
 	- | Service | Stack | Owns | Interface |
