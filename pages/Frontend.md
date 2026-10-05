@@ -5,7 +5,7 @@
 	  | `likho-web-shell` | Navigation, login, theme, Home, error boundaries, the remote loader | — (host) | 1 |
 	  | `likho-mfe-library` | Recordings, upload queue, Jobs | `./routes` | 1 |
 	  | `likho-mfe-transcript` | Transcript player, live lines, corrections, Search | `./routes`, `./TranscriptPanel` (embeddable) | 1 |
-	  | `likho-mfe-vocabulary` | Vocabulary, Models, language policy | `./routes` | 2 |
+	  | `likho-mfe-vocabulary` | The glossary and the spellings with how often each is heard, CSV in and out (`/vocabulary`) | `./App` | 2 - built |
 	  | `likho-mfe-insights` | Dashboard, call summaries and quality checks | `./routes` | 2–3 |
 	  | `likho-mfe-admin` | People and roles, invitations, API keys, workspace settings, the audit log (`/admin`, admins only) | `./App` | 2 - built |
 	  | `likho-ui` | Design system package `@likho/ui`: tokens, components, icons, mascot | npm package | 1 |
@@ -44,4 +44,5 @@
 	- Two things learned while building it, now part of the design: each app ships its own stylesheet (the shell cannot know an app's classes) **scoped under its root element** (`[data-mfe="…"]`), so the same utility class in two apps never fights over an element; and packages are installed from the **tarball attached to a GitHub release** (likho-ui, likho-web-sdk, the contracts), because a git sub-folder dependency did not install reliably.
 	- Since: the Search page in the shell (`/search`, a hit opens the line at its moment), "From the dialer" in the library (a call by its id), and corrections in place in the transcript app (click a line's text or press E; Enter saves; the new version is shown with the line marked, the versions panel says which line a version corrected).
 	- Since 5 October 2026: `likho-mfe-admin` at `/admin` (people with roles changed in place, disable and enable; invitations by email with a role, the one-time link shown to copy; API keys; auto-transcribe and the models; the audit log by kind of change). The shell has `/invite/:token` (whom the link is for, a name, a password), "Forgotten your password?" → `/forgot` → `/reset/:token`, and a personal settings page (appearance, own password). A viewer sees no upload button, no Admin, no Transcribe, no delete, no correction.
-	- Not built yet: likho-mfe-vocabulary (its screen lives in the shell for now), likho-mfe-insights, the embeddable `TranscriptPanel`, Renovate.
+	- Since 5 October 2026 as well: `likho-mfe-vocabulary` at `/vocabulary` (the shell's page moved out): names heard most first with their counts and when, word or phrase, switched on or off; spellings with how often they were applied and the last lines as before/after examples; CSV export and import of either table. Viewers read; members and admins change.
+	- Not built yet: likho-mfe-insights, the embeddable `TranscriptPanel`, Renovate.

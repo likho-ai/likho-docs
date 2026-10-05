@@ -249,7 +249,7 @@
 	  vocabulary_versions(workspace_id, kind, version, updated_at)
 	  ```
 	- **gRPC `likho.language.v1.LanguageService`**: `Transliterate(text, script, workspace)`, `TransliterateBatch(segments[])`, `GetHotwords(workspace, language)`, `ResolveDecodePolicy(detected, probability, candidates[])`, glossary CRUD (`ListGlossary`, `UpsertGlossaryTerm`, `DeleteGlossaryTerm`), spellings CRUD, policy CRUD.
-	- **Produces** `likho.vocabulary.updated`.
+	- **Produces** `likho.vocabulary.updated`. **Consumes** `likho.live.segment` (since v0.3.0, 5 October 2026): every transcript line, with the recording's workspace, raises `heard` on each glossary term found in it (whole word or phrase, either layer, any case) and `applied` on each spelling whose source is in it; the last three such lines are kept per spelling as before/after examples (`spelling_examples`). Counts are lines heard: a recording transcribed twice counts twice. `ImportGlossaryTerms` and `ImportSpellings` load many entries in one transaction (one version, one event); the CSV itself is read and written by likho-api.
 	- ---
 - ## likho-search
 	- Built (v0.1, 3 October 2026): Go, Connect, meilisearch-go, nats.go. `cmd/likho-search`, `internal/{config, index, indexer, events, rpc, app}`.

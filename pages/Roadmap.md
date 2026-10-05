@@ -58,10 +58,11 @@
 	- ### Step 4 - The connector against the real dialer (S, needs the company)
 		- With the credentials in `.env.development.local`: `likho-connector-ameyo check`, one `import <crt_object_id>`, then a `backfill` of one day; set the campaigns and the daily budget; agree the CRM write-back and switch it on; the policy's first numbers from a week of running.
 		- **Done when:** a call fetched by the schedule appears in the library with its attributes, and its transcript is in the CRM row.
-	- ### Step 5 - Vocabulary as its own app, with usage (S)
+	- ### Step 5 - Vocabulary as its own app, with usage (S) - done 5 October 2026
 		- **Backend:** likho-language: phrase lists (multi-word hotwords), how often each term was heard (from the transcripts), import/export as CSV.
 		- **Frontend:** `likho-mfe-vocabulary` at `/vocabulary` (moved out of the shell): terms with counts, spellings with before/after examples from real lines, CSV import.
 		- **Done when:** a term added here is heard in the next transcription and its count rises.
+		- **Done:** contracts v0.9.0 (`GlossaryTerm.is_phrase/heard/last_heard_at`, `Spelling.applied/last_applied_at/examples`, `ImportGlossaryTerms`, `ImportSpellings`; the segment event carries `workspace_id`). likho-language v0.3.0 reads every line the workers publish (`likho.live.segment`, durable `likho-language-segment`) and counts the glossary terms (whole words or phrases, either layer, any case) and the spellings applied in it, keeping the last three lines a spelling was applied to as before/after examples; a phrase term is one multi-word hotword; bulk imports are one transaction, one version, one event. likho-api v0.6.0: the counts and examples in GraphQL, `importGlossaryCsv`/`importSpellingsCsv` and `glossaryCsv`/`spellingsCsv`, and `GET`/`POST /api/v1/vocabulary/{glossary,spellings}.csv` with the file as the body. SDK v0.5.0 hooks. `likho-mfe-vocabulary` at `/vocabulary` (the shell's page is gone): names heard most first with counts and when, spellings with how often and the last lines, CSV export and import, read-only for viewers. Proven in Chrome through the gateway: a name added on the page, a call uploaded, the count rises once the worker has published the lines (the shell's e2e "a name added to the vocabulary is heard in the next transcription").
 	- ### Step 6 - Search and library by attributes (S)
 		- **Backend:** likho-search indexes the recording's attributes (campaign, agent, disposition, date) as filterable fields (likho-api passes them on completion through a `likho.recording.updated` event or the reindex call); likho-api `recordings` filter by attribute and `recordingCounts` by campaign.
 		- **Frontend:** filters on the search and library pages (campaign, agent, date range), attribute columns in the library, saved searches (a `saved_searches` table in likho-api).
@@ -95,7 +96,7 @@
 	  | 2 | Users, roles, admin app | - | M - done |
 	  | 3 | Job robustness and metrics | - | S - done |
 	  | 4 | The connector against the real dialer | credentials, campaigns, CRM permission | S |
-	  | 5 | Vocabulary app with usage | - | S |
+	  | 5 | Vocabulary app with usage | - | S - done |
 	  | 6 | Search and library by attributes | 4 (real attributes to filter) | S |
 	  | 7 | Insights | the yes on a cloud model, or a local one | L |
 	  | 8 | Analytics | 7 for QA numbers; the rest at once | M |
