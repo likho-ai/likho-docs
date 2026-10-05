@@ -7,6 +7,8 @@
 	- The detected language and its probability are saved with every call.
 	- A person can click any line to hear it, correct a wrong word, and search every call.
 	- A spelling table decides how names and products are written. Changing a spelling rewrites the Hinglish of old transcripts in seconds, without running the speech model again.
+- ## How to start
+	- From nothing to the first transcribed call on one machine, in order: [[Setup and start]].
 - ## How it is built
 	- Small services, each in its own repository with its own data: [[Services]].
 	- One event bus, a gateway, login, Kubernetes and CI/CD: [[Platform]].
