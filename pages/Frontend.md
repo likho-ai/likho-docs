@@ -6,7 +6,7 @@
 	  | `likho-mfe-library` | Recordings, upload queue, Jobs | `./routes` | 1 |
 	  | `likho-mfe-transcript` | Transcript player, live lines, corrections, Search | `./routes`, `./TranscriptPanel` (embeddable) | 1 |
 	  | `likho-mfe-vocabulary` | The glossary and the spellings with how often each is heard, CSV in and out (`/vocabulary`) | `./App` | 2 - built |
-	  | `likho-mfe-insights` | Dashboard, call summaries and quality checks | `./routes` | 2–3 |
+	  | `likho-mfe-insights` | The day's calls with what the model said about each one: mood, score and summary; the day in numbers; the same by agent and by campaign (`/insights`). Dashboards come in step 8 | `./App` | 2 - built |
 	  | `likho-mfe-admin` | People and roles, invitations, API keys, workspace settings, the audit log (`/admin`, admins only) | `./App` | 2 - built |
 	  | `likho-ui` | Design system package `@likho/ui`: tokens, components, icons, mascot | npm package | 1 |
 	  | `likho-web-sdk` | `@likho/web-sdk`: GraphQL client with hooks generated from likho-api's `schema.graphql` (GraphQL Code Generator + TanStack Query), session and permissions hooks, live-lines helper, event channel | npm package | 1 |
@@ -15,7 +15,7 @@
 	- **Module Federation** with Vite (`@module-federation/vite`). Each app builds a `remoteEntry.js` and is served by its own NGINX container under `/mfe/<name>/`.
 	- **Manifest.** The shell fetches `/mfe/manifest.json` at start (`{ "library": "/mfe/library/remoteEntry.js", … }`). Changing one line releases or rolls back one app. The manifest is a file in `likho-infra` per environment.
 	- **Shared singletons:** `react`, `react-dom`, `react-router`, `@tanstack/react-query`, `@likho/ui`, `@likho/web-sdk` (`singleton: true`, version ranges pinned by Renovate).
-	- **Routing.** The shell owns the router and mounts each app's `routes` under its prefix: `/recordings`, `/jobs` → library; `/recordings/:id`, `/search` → transcript; `/vocabulary`, `/models` → vocabulary; `/dashboard` → insights; `/settings` → admin. The URL is the contract between apps.
+	- **Routing.** The shell owns the router and mounts each app's `routes` under its prefix: `/recordings`, `/jobs` → library; `/recordings/:id`, `/search` → transcript; `/vocabulary` → vocabulary; `/insights` → insights; `/settings` → admin. The URL is the contract between apps.
 	- **Events between apps:** a typed channel in `@likho/web-sdk` (`emit('upload.finished', { recordingId })`); used sparingly.
 	- **State.** No shared store. Session, workspace, permissions and theme come from the shell through `@likho/web-sdk` context; server data through TanStack Query per app.
 	- **Styling.** Tailwind v4 in every app with the `@likho/ui` preset; tokens are CSS variables defined once by the shell, so light and dark switch everywhere at once. No app defines global CSS.
@@ -46,4 +46,5 @@
 	- Since 5 October 2026: `likho-mfe-admin` at `/admin` (people with roles changed in place, disable and enable; invitations by email with a role, the one-time link shown to copy; API keys; auto-transcribe and the models; the audit log by kind of change). The shell has `/invite/:token` (whom the link is for, a name, a password), "Forgotten your password?" → `/forgot` → `/reset/:token`, and a personal settings page (appearance, own password). A viewer sees no upload button, no Admin, no Transcribe, no delete, no correction.
 	- Since 5 October 2026 as well: `likho-mfe-vocabulary` at `/vocabulary` (the shell's page moved out): names heard most first with their counts and when, word or phrase, switched on or off; spellings with how often they were applied and the last lines as before/after examples; CSV export and import of either table. Viewers read; members and admins change.
 	- Since 5 October 2026, step 6: the search page narrows by campaign, agent, disposition and the days the calls were made (selects fed by `recordingFacets`, everything in the address) and keeps a search for later as a chip (`saveSearch`); the library shows campaign and disposition, agent and call time in its own columns and narrows by campaign, agent and the days from the address.
-	- Not built yet: likho-mfe-insights, the embeddable `TranscriptPanel`, Renovate.
+	- Since 5 October 2026, step 7: the transcript page has an Insights card beside the lines (the model's summary, the customer's mood, the products, the score with each point's reason, the checks with the line each rests on; Analyse / Again for members; a note when the insights are from an older version of the transcript; "off" when no model is configured), kept fresh by `useRecordingLive` (`GET /events/recordings/:id`). `likho-mfe-insights` at `/insights` (port 5178, `/mfe/insights/`) lists a day's calls with mood, score and summary, the day in numbers and the same by agent and by campaign; the day, campaign and agent live in the address.
+	- Not built yet: the embeddable `TranscriptPanel`, Renovate.
