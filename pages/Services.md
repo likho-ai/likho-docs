@@ -1,5 +1,6 @@
 - Companion to the architecture overview. One section per repo: purpose, stack, folder tree, ports, environment, data it owns, gRPC methods, events. Versions are majors; exact versions are pinned when each repo is created and kept current by Renovate.
 - ## Shared conventions
+	- **Metrics and a patient start (5 October 2026):** every service serves Prometheus text at `GET /metrics` on its HTTP port (OpenTelemetry instruments, names `likho_*`) and pushes the same over OTLP/HTTP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (locally `http://localhost:4318`, the `obs` profile with Grafana and the "Likho - jobs and services" dashboard). Every service keeps trying to reach NATS at start for `NATS_CONNECT_TIMEOUT_SECONDS` (120) instead of exiting; once connected, the clients reconnect on their own.
 	- **Ports (local).** HTTP 40x0, gRPC 50x0, one decade per service.
 	- | Service | HTTP | gRPC | | Infra | Port |
 	  | --- | --- | --- | --- | --- | --- |
@@ -126,6 +127,7 @@
 	- Env: `VITE_API_ORIGIN` (empty in dev = same origin through the proxy). Docker image: static build served by NGINX; the same image runs behind the gateway in every environment.
 	- ---
 - ## likho-api
+	- **No job waits forever (v0.5):** a sweeper runs with the consumers every `JOB_SWEEP_SECONDS` (60). A job still queued after `JOB_QUEUED_MAX_MINUTES` (15) is asked for again once (`jobs.asked`), then failed as `no_worker`. A running job with no line for `JOB_STALL_MAX_MINUTES` (10) is stopped at the worker (`CancelJob`), failed as `stalled`, and a fresh job with `attempt` 2 is queued (`JOB_MAX_ATTEMPTS`), which gets its own second ask. The worker says at once that it took a job (`likho.transcription.started`, contracts v0.8.1), so a job is `running` while the model loads and the sweeper leaves it alone; a worker that starts a job already given up on (the stalled job's request, delivered once more to the worker that comes back) is told to drop it, and the worker drops a job it was told to cancel before it had it in hand. A transcript that arrives for a job given up on is kept: the job is done after all. `jobs.last_progress_at` is set when queued, asked again, started and on every line; `Job.attempt` and `Job.lastProgressAt` are in GraphQL and REST. Metrics: `likho_jobs` by status, `likho_jobs_queue_oldest_seconds`, `likho_jobs_finished_total`, `likho_job_realtime_factor`, `likho_events_handled_total`, `likho_job_sweeps_total`.
 	- **Built.** Repository: https://github.com/likho-ai/likho-api
 	- NestJS 12, Apollo Server 5 (GraphQL), REST with OpenAPI (`/api/docs`, `openapi.json`, a Postman collection), server-sent events, PostgreSQL (Drizzle), Redis (live updates between instances), NATS JetStream, Connect clients to the three services. oxlint, prettier, vitest (24 tests against the local stack; the other services faked in the test process).
 	- ```
