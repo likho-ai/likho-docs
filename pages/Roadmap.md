@@ -45,11 +45,12 @@
 		- **Frontend:** inline edit of a line in likho-mfe-transcript (click the text or press E, Enter saves, Esc cancels), a "corrected" mark, the version list shows who changed what; SDK `useCorrectSegment`.
 		- **Done when:** a corrected word is found by search within a second, the old version is still readable, and the browser test corrects a line.
 		- **Done:** contracts v0.7.0 (`CorrectSegment`, `ListCorrections`), likho-transcription (the `corrections` collection, the new version, the event), likho-api v0.3 (`correctSegment`, `corrections`, REST), likho-web-sdk v0.3.1 (`useCorrectSegment`, `useCorrections`), likho-mfe-transcript (edit in place, "corrected" marks, versions say which line). The browser test corrects a line and then finds the corrected word by search.
-	- ### Step 2 - Users, roles and the admin screens (M)
+	- ### Step 2 - Users, roles and the admin screens (M) - done 5 October 2026
 		- **Backend:** likho-api: `users` list/create/disable, roles `admin` / `member` / `viewer` (viewer: read and search only), invitations by email with a one-time link (`invitations` table, token hashed, 7 days), password change and reset (`password_resets`), an `audit_log` (who did what, when, from where - sign-ins, key creation, deletions, role changes, corrections); every mutation writes to it. GraphQL and REST, with the same permission checks in one place (a guard that reads the role).
 		- **Database:** `invitations {id, workspace_id, email, role, token_hash, invited_by, expires_at, accepted_at}`, `password_resets {id, user_id, token_hash, expires_at, used_at}`, `audit_log {id, workspace_id, user_id, action, subject_type, subject_id, details jsonb, ip, at}` with an index on (workspace, at).
 		- **Frontend:** `likho-mfe-admin` (new app, loaded at `/admin`): people, invitations, roles, API keys, workspace settings, the audit log; the settings page moves there from the shell. Email sending through one small `mailer` module (SMTP settings in `.env.<environment>.local`).
 		- **Done when:** an admin invites a person who signs in through the link, a viewer cannot delete, and every change is in the audit log.
+		- **Done:** likho-api v0.4 (roles admin / member / viewer with `MinRole` on the guard; `inviteUser`, `invitation(token)`, `acceptInvitation`, `revokeInvitation`, `users`, `invitations`, `setUserRole`, `disableUser` / `enableUser`, `changePassword`, `requestPasswordReset` / `resetPassword`, `auditLog`; tables `invitations`, `password_resets`, `audit_log`; mail through `SMTP_URL`, invitation links shown to the admin either way), likho-web-sdk v0.4 (the hooks), the new `likho-mfe-admin` app at `/admin` (people, invitations, API keys, workspace settings, audit log), the shell's `/invite/:token`, `/forgot` and `/reset/:token` pages and a personal settings page; the library and transcript apps hide every way to change things from a viewer. The browser test invites a viewer who joins through the link, sees no upload, is made a member and then disabled (signed out at once), and reads it all back in the audit log.
 	- ### Step 3 - Job robustness (S)
 		- **Backend:** likho-api sweeps jobs: `queued` for longer than a limit with no worker, or `running` with no progress for N minutes, become `failed` with a reason and are queued once more (a `jobs.last_progress_at` column, written on every live segment). likho-api and likho-media retry the first connection to NATS instead of exiting. Metrics (`/metrics`, OpenTelemetry) on every service: jobs by state, queue age, realtime factor.
 		- **Done when:** restarting NATS and the worker mid-job leaves no job "queued" forever, and Grafana shows the queue.
@@ -90,7 +91,7 @@
 	- | # | Step | Needs | Size |
 	  | --- | --- | --- | --- |
 	  | 1 | Corrections | - | M - done |
-	  | 2 | Users, roles, admin app | - | M |
+	  | 2 | Users, roles, admin app | - | M - done |
 	  | 3 | Job robustness and metrics | - | S |
 	  | 4 | The connector against the real dialer | credentials, campaigns, CRM permission | S |
 	  | 5 | Vocabulary app with usage | - | S |
