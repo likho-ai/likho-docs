@@ -150,7 +150,7 @@
 	- **Consumes** `likho.media.ready`, `likho.media.failed`, `likho.live.segment`, `likho.transcription.completed`, `likho.transcription.failed` (durable consumers named `<group>-<event>`, applied once by event id). **Produces** `likho.transcription.requested`.
 	- **Env**: `DATABASE_URL`, `REDIS_URL`, `NATS_URL`, `MEDIA_GRPC_ADDR`, `TRANSCRIPTION_GRPC_ADDR`, `LANGUAGE_GRPC_ADDR`, `PUBLIC_ORIGIN`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_EMAIL/PASSWORD` (the first admin and workspace), `CONSUMERS_ENABLED`, `CONSUMER_GROUP`.
 	- Sign-in is a session cookie backed by a row (revocation is immediate); passwords are scrypt; API keys are shown once and stored hashed. Keycloak and short-lived JWTs between services remain Wave 3.
-	- Not built yet: corrections (`correctSegment`, `likho.transcript.corrected`), user management screens beyond `users:add`. Built since: `search`, `requestImport` / `imports`, recording `attributes` and `source`, `likho.recording.deleted` (v0.2).
+	- Built since v0.1: `search`, `requestImport` / `imports`, recording `attributes` and `source`, `likho.recording.deleted` (v0.2); `correctSegment(input)` and `corrections(recordingId)`, with `POST/GET /api/v1/recordings/:id/transcript/corrections` (v0.3). Not built yet: user management screens beyond `users:add`.
 	- ---
 - ## likho-media
 	- **Built.** Repository: https://github.com/likho-ai/likho-media
@@ -219,6 +219,7 @@
 		- When likho-language is down, lines are written with the built-in rules and the transcript is stored with `vocabulary_version` 0, to be re-transliterated later.
 	- Scaling: workers share one durable consumer, so starting a second worker (another machine, a GPU box) splits the queue with no code change.
 	- ---
+	- **Corrections (v0.2, 5 October 2026):** `CorrectSegment(transcript, index, layer, text, user, workspace)` makes the next version with that one line as the person wrote it, keeps the change in the `corrections` collection (recording, the version looked at, the version made, index, layer, before, after, user, time - training data, never expired) and publishes `likho.transcript.corrected` with the new version's id, which likho-search reindexes. The Hinglish of a corrected script line is derived again through likho-language; a corrected Hinglish stands as written. Only the latest version can be corrected. `ListCorrections(recording)` returns them newest first.
 - ## likho-language
 	- Python 3.12, uv, grpcio, SQLAlchemy 2 + Alembic (PostgreSQL), nats-py. The transliteration rules move here from `transcriber/hinglish/` as an installable package (`likho-hinglish`) that likho-transcription also depends on for its offline fallback.
 	- ```

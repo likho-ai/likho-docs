@@ -37,13 +37,14 @@
 	  ```
 - ## 3. The steps, in order
 	- Each step is done the same way: contract first (likho-contracts), then the service with its tests against the real stack, then likho-api, then the SDK, then the screen, then the browser test, then the docs - CI green at every push. S = a day or two, M = about a week, L = two weeks or more.
-	- ### Step 1 - Corrections (M)
+	- ### Step 1 - Corrections (M) - done 5 October 2026
 		- **Why first:** people will fix lines; every fix is training data and must reach search.
 		- **Contract:** `TranscriptionService.CorrectSegment(transcript_id, index, layer, text, user_id)` → a new transcript version; event `likho.transcript.corrected.v1` (already defined) carries before/after.
 		- **Backend:** likho-transcription stores `corrections {transcript_id, version, index, layer, before, after, user_id, at}` and writes version n+1 with the line replaced (the other layer re-derived when the script layer changed); likho-api mutation `correctSegment` and `GET/POST /api/v1/recordings/:id/transcript/corrections`; likho-search already reindexes on the event.
 		- **Database:** Mongo `corrections` collection (indexed by transcript and by user); `transcripts.version` chain unchanged.
 		- **Frontend:** inline edit of a line in likho-mfe-transcript (click the text or press E, Enter saves, Esc cancels), a "corrected" mark, the version list shows who changed what; SDK `useCorrectSegment`.
 		- **Done when:** a corrected word is found by search within a second, the old version is still readable, and the browser test corrects a line.
+		- **Done:** contracts v0.7.0 (`CorrectSegment`, `ListCorrections`), likho-transcription (the `corrections` collection, the new version, the event), likho-api v0.3 (`correctSegment`, `corrections`, REST), likho-web-sdk v0.3.1 (`useCorrectSegment`, `useCorrections`), likho-mfe-transcript (edit in place, "corrected" marks, versions say which line). The browser test corrects a line and then finds the corrected word by search.
 	- ### Step 2 - Users, roles and the admin screens (M)
 		- **Backend:** likho-api: `users` list/create/disable, roles `admin` / `member` / `viewer` (viewer: read and search only), invitations by email with a one-time link (`invitations` table, token hashed, 7 days), password change and reset (`password_resets`), an `audit_log` (who did what, when, from where - sign-ins, key creation, deletions, role changes, corrections); every mutation writes to it. GraphQL and REST, with the same permission checks in one place (a guard that reads the role).
 		- **Database:** `invitations {id, workspace_id, email, role, token_hash, invited_by, expires_at, accepted_at}`, `password_resets {id, user_id, token_hash, expires_at, used_at}`, `audit_log {id, workspace_id, user_id, action, subject_type, subject_id, details jsonb, ip, at}` with an index on (workspace, at).
@@ -88,7 +89,7 @@
 - ## 5. The order, with dependencies
 	- | # | Step | Needs | Size |
 	  | --- | --- | --- | --- |
-	  | 1 | Corrections | - | M |
+	  | 1 | Corrections | - | M - done |
 	  | 2 | Users, roles, admin app | - | M |
 	  | 3 | Job robustness and metrics | - | S |
 	  | 4 | The connector against the real dialer | credentials, campaigns, CRM permission | S |
