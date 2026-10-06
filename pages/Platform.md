@@ -30,6 +30,8 @@
 	- Note: the old "NATS Streaming Server" (STAN) used in many tutorials is retired; JetStream is its replacement and is part of the normal NATS server.
 - ## 2. Cookies, sessions and JWT
 	- Two different problems, two tools.
+	- **As built (October 2026).** A person signs in with email and password; likho-api keeps the session in PostgreSQL (`sessions`, the cookie's value only as a hash) and sets `likho_session` (`HttpOnly`, `SameSite=Lax`), valid `SESSION_DAYS` (30). Disabling a person or resetting a password ends their sessions. Scripts send an API key (`lk_…`, stored hashed); another system's page sends a short-lived viewer token (`lt_…`) exchanged from a key. Redis carries the live updates between likho-api instances. The internal JWT below is **not built**: the services trust the cluster's network, and only likho-api is reachable from outside (the gateway). It stays the plan for when services are exposed more widely, and for single sign-on.
+	- The design as first written:
 	- **Browser → likho-api: session cookie.**
 	- Login (email + password in Wave 1, Keycloak single sign-on in Wave 3) creates a session row; the browser gets `likho_session`, a random id, as a cookie that is `HttpOnly`, `Secure`, `SameSite=Lax`, path `/`.
 	- The session itself (user, workspace, role, expiry) lives in Redis with a PostgreSQL record, so it can be listed and revoked ("log out everywhere").

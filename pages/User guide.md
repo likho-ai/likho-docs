@@ -1,0 +1,49 @@
+- How to use Likho, screen by screen, for the people who read, correct and audit calls. Setting it up is [[Setup and start]]; the words used here are in [[Glossary]].
+- ## Signing in and roles
+	- Open Likho in a browser (on one machine: http://localhost:8080) and sign in with your email and password. A new person gets an invitation link from an admin; **Forgot password** mails a reset link.
+	- Every person has one role in the workspace:
+	- | Role | Can |
+	  | --- | --- |
+	  | viewer | read recordings and transcripts, play audio, search, see insights and numbers |
+	  | member | everything a viewer can, and upload, record, fetch from the dialer, transcribe, correct lines, change the vocabulary |
+	  | admin | everything a member can, and manage people, invitations, API keys, the workspace's settings, and read the audit log |
+	- The moon button in the top bar switches between light and dark. **Settings** (top bar) holds your theme and your password.
+- ## Home
+	- Signed in, the home page opens with **yesterday in numbers**: calls, transcribed, minutes of audio, calls analysed and their average score. **The last two weeks** opens the Insights page.
+- ## Recordings
+	- The list of every call in the workspace, newest first, with its status (uploading, ready, queued, transcribing, done, failed), its length and the detected language.
+	- **Narrow the list** by status, campaign, agent, disposition, source and the call's date, or type part of a file name or a dialer id. The campaign, agent and disposition lists are filled from the calls themselves, with how many calls have each value.
+	- **Bring a call in**, three ways:
+		- **Upload call** (top bar, or the panel on this page): any audio file; drag and drop works. Several files at once are fine.
+		- **Record**: from the microphone, for a test or a dictated note.
+		- **From the dialer**: paste a call's id from the dialer (its `crt_object_id`). The dialer connector fetches the recording, with the call's campaign, agent, disposition and time, and transcribes it. The row below says when it arrived, or why it could not.
+	- With **Transcribe every recording as soon as it is ready** on (Admin → Workspace), a call is transcribed by itself; otherwise open it and press **Transcribe**.
+- ## A call's page
+	- **The player**: the waveform of the whole call; click anywhere to jump, space to play or pause, the arrows to skip. The speed button plays faster.
+	- **The transcript**: one line per phrase, each with its time. **Hinglish** shows the Roman-letter text, **Devanagari** the script that was spoken, **Both** the two together. Click a line's time to hear it; the line being played is highlighted. **Find** marks a word in the transcript.
+	- **While it is transcribed** the lines appear as they are written, with the progress; **Cancel** stops the job.
+	- **Correct a line** (member or admin): click the pencil beside a line, change the Hinglish or the Devanagari, save. A correction makes a new version of the transcript; the line is marked as corrected and the old wording is kept. **Versions** lists every version; **Corrections** lists what was changed, by whom and when. Corrections are also what the speech model learns from later.
+	- **Downloads**: `.txt` (the chosen layer) and `.srt` (subtitles with times).
+	- **Facts of the call**: campaign, agent, disposition, the dialer's call time and the other fields the dialer gave.
+	- **Insights**: the summary, the products named, the customer's mood, and the auditor's checks with a score, when a model is configured (see [[Configuration]]). **Analyse** asks for them again.
+	- **Transcribe again** with another model (when there is more than one), and **Delete** the call with its audio and transcripts (admin).
+- ## Search
+	- Type a few words; every line of every call that matches is listed with the word marked, in either layer: `namaskar` finds `नमस्कार` and the other way round, and small typing mistakes are forgiven.
+	- Narrow by campaign, agent, disposition, source, language and dates. Click a result to open the call at that line.
+	- **Save** a search under a name (refunds, sales, last week); saved searches are listed beside the box for everyone in the workspace.
+- ## Vocabulary
+	- **Glossary**: the names and products the speech model should listen for. Each term shows how often it was **heard** in transcripts and when last. Add, switch off or delete terms.
+	- **Spellings**: how a word is written in Hinglish (`dawai` → `davai`, a product's spelling). Each shows how often it was **applied** and the last lines it changed. Changing a spelling rewrites the Hinglish of existing transcripts in seconds, without transcribing again.
+	- Both lists download and load as **CSV**, to edit in a spreadsheet.
+- ## Insights
+	- **The last 14 days**: calls, transcribed, minutes, speed (seconds of work per second of audio), analysed and the average score; charts of calls, minutes and the score per day; the languages and the moods; agents and campaigns in tables.
+	- **The day**: pick a day, and a campaign or an agent; every call of the day with its mood, score and summary, and the numbers by agent and by campaign. Open a call to read the checks beside its transcript.
+	- When no model is configured the page says so: calls are transcribed but not analysed, and no transcript text leaves the installation.
+- ## Admin (admins only)
+	- **People**: everyone in the workspace, their role, and whether they can sign in. Change a role or disable a person; a disabled person is signed out everywhere.
+	- **Invitations**: invite by email with a role; the link is valid for seven days and can be revoked.
+	- **API keys**: keys for scripts and connectors (the dialer connector, a reports portal). A key is shown once when made; revoke it when it is no longer used.
+	- **Workspace**: whether every recording is transcribed as soon as it is ready, and which models the workers can run.
+	- **Audit log**: every change, who made it, to what and when: sign-ins, people, roles, keys, settings, uploads, deletions, corrections, imports.
+- ## Another system's page
+	- A reports portal can show a call's transcript beside its own recording button. Its server keeps a Likho API key and asks Likho for a short-lived viewer token each time the page opens; the page then shows Likho's transcript panel (player and lines, read only). Nobody signs in to Likho for it. See [[API Documentation]].

@@ -22,12 +22,19 @@ After the first push and with GitHub Pages set to the `gh-pages` branch, the sit
 
 | Page | Content |
 | --- | --- |
-| Introduction | What Likho is, how it is built, the repositories |
+| Introduction | What Likho is, what to read next, the repositories, the status |
+| User guide | Every screen, for the people who read, correct and audit calls |
+| Setup and start | From nothing to the first transcribed call on one machine |
+| Configuration | The .env files, the settings that matter, the workspace settings |
+| Operations | Health, metrics, the dashboard, stuck jobs, backups, troubleshooting |
 | Services | Each service: stack, folders, ports, data, gRPC calls, events |
-| Platform | Event bus, login (cookies, sessions, JWT), Kubernetes, gateway, Google Cloud, CI/CD |
+| Data model | Where every kind of data lives, and the main tables |
+| Platform | Event bus, sign-in, Kubernetes, gateway, Google Cloud, CI/CD |
 | Frontend | Micro-frontends: the shell, the apps, the shared packages |
 | UI Design | Colours in light and dark, type, components, every screen |
-| API Documentation | REST, GraphQL, gRPC and events; Postman |
+| API Documentation | REST, GraphQL, gRPC and events, as built |
+| Glossary | The words used across Likho |
+| Roadmap | What is done, what comes next, step by step |
 | Research | Open-source projects and speech models that were studied |
 | adr/… | Decision records |
 
@@ -36,7 +43,7 @@ After the first push and with GitHub Pages set to the `gh-pages` branch, the sit
 This repository is public. Anything about a customer's systems, data, call volumes, people
 or credentials stays out of it.
 
-## Not verified yet
+## Publishing
 
-The publish workflow has not run; it runs on the first push. If a page does not appear,
-check `logseq/config.edn` (`:publishing/all-pages-public? true`).
+Every push to `main` publishes the site (GitHub Pages, branch `gh-pages`). If a page does not
+appear, check `logseq/config.edn` (`:publishing/all-pages-public? true`).
