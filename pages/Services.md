@@ -4,7 +4,7 @@
 	- **Ports (local).** HTTP 40x0, gRPC 50x0, one decade per service.
 	- | Service | HTTP | gRPC | | Infra | Port |
 	  | --- | --- | --- | --- | --- | --- |
-	  | likho-web-shell (Vite dev; apps on 5174–5178) | 5173 | — | | NGINX gateway | 80 |
+	  | likho-web-shell (Vite dev; apps on 5274–5278) | 5273 | — | | NGINX gateway | 80 |
 	  | likho-api | 4000 | — | | PostgreSQL | 5432 |
 	  | likho-media | 4010 | 5010 | | MongoDB | 27017 |
 	  | likho-transcription | 4020 | 5020 | | Redis | 6379 |

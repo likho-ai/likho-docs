@@ -49,14 +49,14 @@
 	- The shell and the apps are separate Vite dev servers; the gateway serves them all at http://localhost:8080. In each folder: `npx pnpm@10.34.6 install` once, then `npx pnpm@10.34.6 dev`.
 	- | Repository | Port | What it is |
 	  | --- | --- | --- |
-	  | likho-web-shell | 5173 | sign-in, navigation, home, search, settings; loads the apps below |
-	  | likho-mfe-library | 5174 | the recordings |
-	  | likho-mfe-transcript | 5175 | the transcript page, and the panel other systems embed |
-	  | likho-mfe-admin | 5176 | people, keys, settings, the audit log |
-	  | likho-mfe-vocabulary | 5177 | the glossary and the spellings |
-	  | likho-mfe-insights | 5178 | the numbers and what the model says |
+	  | likho-web-shell | 5273 | sign-in, navigation, home, search, settings; loads the apps below |
+	  | likho-mfe-library | 5274 | the recordings |
+	  | likho-mfe-transcript | 5275 | the transcript page, and the panel other systems embed |
+	  | likho-mfe-admin | 5276 | people, keys, settings, the audit log |
+	  | likho-mfe-vocabulary | 5277 | the glossary and the spellings |
+	  | likho-mfe-insights | 5278 | the numbers and what the model says |
 	- Open **http://localhost:8080** and sign in with the development admin from likho-api's `.env.development`: `admin@example.com` / `admin-password-1`. (A real installation sets `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env.<environment>.local` instead.)
-	- The apps are shared with the shell at run time (Module Federation), so after a change of `@likho-ai/web-sdk` the shell's dev server must be restarted with `npx pnpm@10.34.6 exec vite --port 5173 --strictPort --force`, else the apps see the old package.
+	- The apps are shared with the shell at run time (Module Federation), so after a change of `@likho-ai/web-sdk` the shell's dev server must be restarted with `npx pnpm@10.34.6 exec vite --port 5273 --strictPort --force`, else the apps see the old package.
 - ## 6. The first call
 	- **Upload call** on the home page or the Recordings page: any audio format. The file goes to likho-media, is found to be audio, and a job is queued; likho-transcription takes it and the lines appear on the transcript page as they are written. The first job also downloads the speech model, so it takes a few minutes; a two-minute call then takes about a minute and a half.
 	- Open the call: play it, read it in Hinglish, Devanagari or both, correct a line, download `.txt` or `.srt`. **Search** finds any word of any call. **Vocabulary** holds the names the model listens for and how words are written. **Insights** shows the day's calls and the last two weeks in numbers; the home page shows yesterday.
