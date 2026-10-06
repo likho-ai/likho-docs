@@ -17,6 +17,7 @@
 		- **Upload call** (top bar, or the panel on this page): any audio file; drag and drop works. Several files at once are fine.
 		- **Record**: from the microphone, for a test or a dictated note.
 		- **From the dialer**: paste a call's id from the dialer (its `crt_object_id`). The dialer connector fetches the recording, with the call's campaign, agent, disposition and time, and transcribes it. The row below says when it arrived, or why it could not.
+		- **Browse the dialer**: choose the days, then a campaign and an agent from the dialer's own lists (with how many calls each had), how long a call must have lasted, and connected calls only. The dialer's calls are listed with their time, disposition, talk time and who hung up; a call already in Likho links to its transcript. Tick the calls worth a transcript (or all of them) and **Fetch ticked**: up to 200 at once.
 	- With **Transcribe every recording as soon as it is ready** on (Admin → Workspace), a call is transcribed by itself; otherwise open it and press **Transcribe**.
 - ## A call's page
 	- **The player**: the waveform of the whole call; click anywhere to jump, space to play or pause, the arrows to skip. The speed button plays faster.
@@ -44,6 +45,8 @@
 	- **Invitations**: invite by email with a role; the link is valid for seven days and can be revoked.
 	- **API keys**: keys for scripts and connectors (the dialer connector, a reports portal). A key is shown once when made; revoke it when it is no longer used.
 	- **Workspace**: whether every recording is transcribed as soon as it is ready, and which models the workers can run.
+	- **Dialer**: what the dialer connector does by itself. **Fetch new calls by themselves** switches the schedule on; **Campaigns** are the dialer's own, each with its calls of the last week (none ticked = every campaign); the shortest talk time, how many calls a day and a run, how often it looks, how many phone digits are kept, and whether transcripts are written back to the CRM. **Save**, and the connector follows at once. Above the form: the connector's version, today's calls against the limit, where the schedule stands and its last run.
+	- **System**: every service, whether it answers right now, what it says (a model configured, the connector's schedule) and how fast; checked every half minute or on **Check now**.
 	- **Audit log**: every change, who made it, to what and when: sign-ins, people, roles, keys, settings, uploads, deletions, corrections, imports.
 - ## Another system's page
 	- A reports portal can show a call's transcript beside its own recording button. Its server keeps a Likho API key and asks Likho for a short-lived viewer token each time the page opens; the page then shows Likho's transcript panel (player and lines, read only). Nobody signs in to Likho for it. See [[API Documentation]].

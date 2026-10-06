@@ -27,6 +27,8 @@
 	  | `GET /recordings/{id}/insights`, `POST …/insights`, `GET /insights/status` | What the model said about a call; ask again; whether a model is configured |
 	  | `GET /analytics/overview`, `/timeseries`, `/breakdown` | The numbers of a window of call time, by day or hour, by agent, campaign, disposition, language, sentiment or source |
 	  | `POST /tokens/exchange` | With an API key: a viewer token for another system's page |
+	  | `GET /dialer/campaigns`, `/dialer/agents`, `/dialer/calls`, `/dialer/status` | The dialer's own campaigns and agents of a window with their counts, its calls a page at a time (each with its recording when Likho has it), and what the connector is doing |
+	  | `GET /settings` | Every setting of the workspace; what a connector reads with its key |
 	- Live updates are server-sent events: `GET /events/jobs/{id}` (one job's lines as they are written, and its end), `GET /events/recordings/{id}` (one call), `GET /events/recordings` (everything in the workspace).
 	- Health and metrics: `GET /healthz`, `GET /readyz`, `GET /metrics`.
 	- **A whole call by script**, with `KEY` an API key:
@@ -39,8 +41,8 @@
 	  curl -s -H "Authorization: Bearer $KEY" http://localhost:8080/api/v1/recordings/rec_…/transcript
 	  ```
 - ## GraphQL `/graphql`
-	- What the web apps use; everything the REST API does and more. The main queries: `me`, `recordings`, `recording`, `recordingFacets`, `recordingCounts`, `transcript`, `transcriptVersions`, `corrections`, `jobs`, `search`, `savedSearches`, `glossary`, `spellings`, `imports`, `insights`, `insightsStatus`, `analyticsOverview`, `analyticsTimeseries`, `analyticsBreakdown`, `users`, `invitations`, `apiKeys`, `auditLog`, `settings`, `engines`.
-	- The main mutations: `login`, `logout`, `requestUpload`, `createJob`, `cancelJob`, `correctSegment`, `retransliterate`, `deleteRecording`, `requestImport`, `saveSearch`, `upsertGlossaryTerm`, `upsertSpelling` and their CSV imports, `analyseRecording`, `inviteUser`, `setUserRole`, `disableUser`, `createApiKey`, `revokeApiKey`, `updateSettings`, password changes and resets.
+	- What the web apps use; everything the REST API does and more. The main queries: `me`, `recordings`, `recording`, `recordingFacets`, `recordingCounts`, `transcript`, `transcriptVersions`, `corrections`, `jobs`, `search`, `savedSearches`, `glossary`, `spellings`, `imports`, `insights`, `insightsStatus`, `analyticsOverview`, `analyticsTimeseries`, `analyticsBreakdown`, `dialerCampaigns`, `dialerAgents`, `dialerCalls`, `dialerStatus`, `systemStatus`, `users`, `invitations`, `apiKeys`, `auditLog`, `settings`, `engines`.
+	- The main mutations: `login`, `logout`, `requestUpload`, `createJob`, `cancelJob`, `correctSegment`, `retransliterate`, `deleteRecording`, `requestImport`, `requestImports` (up to 200), `saveSearch`, `upsertGlossaryTerm`, `upsertSpelling` and their CSV imports, `analyseRecording`, `inviteUser`, `setUserRole`, `disableUser`, `createApiKey`, `revokeApiKey`, `updateSettings(input)`, password changes and resets.
 	- Web apps do not write GraphQL by hand: likho-web-sdk holds the operations and typed React hooks (`useRecordings`, `useTranscript`, `useSearch`, `useAnalyticsOverview`, …).
 - ## gRPC (between services)
 	- | Service | Served by | Calls |
@@ -51,6 +53,7 @@
 	  | `likho.search.v1.SearchService` | likho-search | `Search`, `Reindex`, `DeleteRecording` |
 	  | `likho.insights.v1.InsightsService` | likho-insights | `GetInsights`, `Analyse`, `GetStatus` |
 	  | `likho.analytics.v1.AnalyticsService` | likho-analytics | `GetOverview`, `GetTimeseries`, `GetBreakdown` |
+	  | `likho.dialer.v1.DialerService` | likho-connector-ameyo | `ListCampaigns`, `ListAgents`, `ListCalls`, `GetCall`, `GetStatus` |
 	- Every service also answers the standard gRPC health check.
 - ## Events (NATS JetStream)
 	- Every event is a CloudEvent with a versioned type (`likho.transcription.completed.v1`) on a fixed subject (`likho.transcription.completed`). The publisher sets the CloudEvent id as the message id, so a duplicate within two minutes is dropped; a consumer acknowledges only when it handled the event and acts on an id once.

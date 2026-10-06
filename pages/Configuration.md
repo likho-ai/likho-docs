@@ -23,10 +23,12 @@
 	  | `SCHEDULE_ENABLED`, `CAMPAIGNS`, `MIN_TALK_SECONDS`, `DAILY_LIMIT` | likho-connector-ameyo | which calls are fetched by themselves, and how many a day |
 	  | `WRITEBACK_ENABLED`, `CRM_DATABASE_URL` | likho-connector-ameyo | transcripts written back to the CRM |
 	  | `PHONE_DIGITS` | likho-connector-ameyo | how many digits of a phone number are kept (4; 0 = none) |
+	  | `DIALER_TIMEZONE`, `CAMPAIGNS_LIST_QUERY_FILE`, `AGENTS_QUERY_FILE`, `WINDOW_QUERY_FILE` | likho-connector-ameyo | the zone of the dialer's clock; the SQL of the campaign, agent and call lists people browse (real ones in `queries/*.local.sql`) |
 	  | `*_GRPC_ADDR` | likho-api | where the other services are |
 	  | `OTEL_EXPORTER_OTLP_ENDPOINT`, `LOG_LEVEL` | every service | metrics pushed to Grafana; how much is logged |
 - ## Workspace settings (Admin)
 	- **Transcribe every recording as soon as it is ready** (on by default). Off: a call waits until someone presses Transcribe.
+	- **Dialer** (Admin → Dialer): the schedule on or off, the campaigns, the shortest talk time, calls a day and a run, how often it looks, the phone digits kept, the write-back. They are stored in likho-api; the connector reads them with its key (`GET /api/v1/settings`) at start, every 30 s until likho-api answers, and again whenever `likho.settings.changed` says they changed. The connector's `.env` values (`SCHEDULE_ENABLED`, `CAMPAIGNS`, `DAILY_LIMIT`…) only stand until then, or always with `SETTINGS_FROM_LIKHO=false`. The write-back still needs `CRM_DATABASE_URL` on the connector, and the schedule `DIALER_DATABASE_URL`.
 	- The models the workers can run are listed beside it; which is the default is an installation setting of likho-transcription today, and an admin choice from Roadmap step 10.
 - ## Before going live
 	- Set real secrets (the `.local` files), `PUBLIC_ORIGIN`, the first admin, `SMTP_URL`, `TZ`.

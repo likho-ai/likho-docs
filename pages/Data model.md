@@ -49,7 +49,7 @@
 	- `calls`: one row per dialer call fetched: external id, workspace, status, recording id, failure code and reason, attempts, call time, campaign, who asked, when written back to the CRM.
 	- `cursors`: where the schedule stands (the dialer's call time of the last call taken).
 	- `handled_events`: events already acted on.
-	- The dialer's own reporting database is only **read**, with SQL kept in the installation (`queries/*.local.sql`, never in the repository), and the CRM is only written by the write-back query when it is switched on.
+	- The dialer's own reporting database is only **read** (the call details, the schedule, and the campaign, agent and call lists people browse), with SQL kept in the installation (`queries/*.local.sql`, never in the repository), and the CRM is only written by the write-back query when it is switched on.
 - ## What is never stored
 	- Passwords, session cookies, API keys and tokens are stored only as hashes.
 	- Phone numbers from the dialer are cut to the last few digits (four by default) before they reach Likho.

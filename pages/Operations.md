@@ -9,7 +9,7 @@
 	  | likho-language | 4030 | 5030 |
 	  | likho-search | 4040 | 5040 |
 	  | likho-insights | 4050 | 5050 |
-	  | likho-connector-ameyo | 4060 | - |
+	  | likho-connector-ameyo | 4060 | 5060 |
 	  | likho-analytics | 4070 | 5070 |
 	- The stack: `.\stack.ps1 ps` in likho-infra shows every container, its health and its memory; `.\stack.ps1 smoke` runs the checks that prove it works.
 - ## Metrics, logs and the dashboard
