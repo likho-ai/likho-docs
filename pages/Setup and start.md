@@ -32,6 +32,7 @@
 	- `.\stack.ps1 obs` also starts Grafana with logs, traces and metrics (about 1 GB of memory); `.\stack.ps1 down` stops everything and keeps the data.
 	- The gateway listens on **http://localhost:8080** and routes to the services and the web apps running on the host, so the browser has one origin.
 - ## 4. Start the services
+	- **The quick way (Windows):** in likho-infra, `.\dev.ps1` starts every service and web app below that is not running yet, each in a PowerShell window of its own (close a window to stop that part; `.\dev.ps1 status` and `.\dev.ps1 stop`). The tables below are what it runs, for starting a part by hand.
 	- Each service reads its settings from `.env.development` in its folder (committed, no secrets; the defaults match the stack). Start each in its own terminal, in this order; the first two take a minute.
 	- | Repository | Command | Ports (HTTP health and metrics / gRPC) |
 	  | --- | --- | --- |
