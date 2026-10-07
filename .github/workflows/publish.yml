@@ -19,7 +19,7 @@ jobs:
           graph-directory: .
           output-directory: www
       - name: Add a nojekyll file so asset paths are served as they are
-        run: touch $GITHUB_WORKSPACE/www/.nojekyll
+        run: touch "$GITHUB_WORKSPACE/www/.nojekyll"
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
