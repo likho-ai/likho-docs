@@ -90,8 +90,11 @@
 	- ### Step 10 - Model registry and the training loop (L)
 		- **Backend:** `likho-ml`: models (engine, version, languages, artifact in `likho-models`), evaluation runs on a gold set (word error rate, both layers), training examples from corrections, a fine-tuning job launcher for a GPU machine or a cloud job; likho-transcription reads the registry for the default model.
 		- **Done when:** a new model is evaluated against the gold set and set as the default from the admin screen.
-	- ### Step 11 - Scale and operations (M)
+	- ### Step 11 - Scale and operations (M) - built 7 October 2026; the cluster and the cloud engine still to come
 		- GPU worker image for likho-transcription (CUDA) and the cloud-engine toggle (off until allowed); KEDA scaling of the worker on queue depth, HPA for likho-api and the web apps; PodDisruptionBudgets and NetworkPolicies in the chart; backups of the volumes (snapshots) and a restore drill; alerts (queue age, failed jobs, disk).
+		- **Built:** likho-deploy: the transcription worker is a StatefulSet (a model cache per pod) scaled by a KEDA `ScaledObject` on the `likho-transcription-requested` consumer's backlog; HorizontalPodAutoscalers for likho-api, the gateway and the web apps; a PodDisruptionBudget for every workload with two pods or more, pods spread over nodes and zones; NetworkPolicies in both charts (a service reachable only by its callers, the databases only by Likho's pods, NATS monitoring by KEDA and Prometheus); a `PodMonitor` and a `PrometheusRule` (a job waiting too long, failures, no worker, restarts, volumes filling, a backup failed or missing); nightly `likho-backup` (PostgreSQL, MongoDB, ClickHouse to S3, 14 days kept), a monthly `likho-restore-drill`, nightly `VolumeSnapshot`s; startup probes on the databases. Production switches it all on, and the chart refuses to render without KEDA or the Prometheus Operator. likho-transcription `Dockerfile.cuda` (CUDA 12, cuDNN 9), published as `:<tag>-cuda` by CI (likho-infra's docker-publish takes `file` and `suffix`).
+		- **Proven** on the local cluster: the backup dumped PostgreSQL and MongoDB to the object store and the drill restored them into scratch databases with every table and collection back. Every environment renders and passes the Kubernetes schemas. Two older faults surfaced and were fixed: ClickHouse never started in Kubernetes (its memory limit rendered as `1.2e+09`), and a database recovering after an unclean stop was restarted for ever by its liveness probe.
+		- **Open:** a cluster with KEDA, kube-prometheus-stack and an enforcing CNI to prove scaling, the policies and the alerts; a GPU to prove the `-cuda` image (no GPU on the development machine); a backup bucket outside the cluster; the cloud engine, which needs the company to choose a speech-to-text provider.
 	- ### Step 12 - Platform hygiene (S, needs the company's decisions)
 		- Branch protection on `main`, release-please for changelogs and tags, Renovate for dependencies, CODEOWNERS, the licence, GHCR image visibility, a status page.
 - ## 4. The frontend, as it grows
@@ -111,6 +114,6 @@
 	  | 8 | Analytics | 7 for QA numbers; the rest at once | M - done |
 	  | 9 | Transcript panel in the reports portal | 2 (token exchange) | S - built; portal screen to verify |
 	  | 10 | Model registry and training loop | 1 (corrections as data), a GPU | L |
-	  | 11 | Scale and operations | a cluster with a domain | M |
+	  | 11 | Scale and operations | a cluster with a domain | M - built; needs a cluster to prove |
 	  | 12 | Platform hygiene | the licence, branch rules | S |
 	- Steps 1, 2 and 3 can start now and in that order; 4 starts the day the credentials arrive; 5 and 6 fit between; 7 waits for one decision; 8 onwards follow.
